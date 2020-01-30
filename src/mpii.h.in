@@ -77,9 +77,9 @@ struct mpii_info {
 /* information on the local process */
 extern struct mpii_info mpii_infos;
 
-#if VERBOSE
-#define FUNCTION_ENTRY_(fname) printf("Entering %s\n", fname);
-#define FUNCTION_EXIT_(fname)  printf("Leaving %s\n", fname);
+#if 1
+#define FUNCTION_ENTRY_(fname) printf("[%d/%d]\tEntering %s\n", mpii_infos.rank, mpii_infos.size, fname);
+#define FUNCTION_EXIT_(fname)  printf("[%d/%d]\tLeaving %s\n", mpii_infos.rank, mpii_infos.size, fname);
 #else
 #define FUNCTION_ENTRY_(fname) (void)0
 #define FUNCTION_EXIT_(fname)  (void)0
@@ -386,13 +386,9 @@ static void instrument_function(struct ezt_instrumented_function* f) {
       MPII_PRINTF(1, "Instrumenting %s using dlsym\n", f->function_name);
       /* binary instrumentation did not find the symbol. */
       void* ptr = dlsym(RTLD_NEXT, f->function_name);
-      if(!ptr) {
-	MPII_PRINTF(1, "Warning: cannot find symbol %s: %s\n", f->function_name, dlerror());
-      } else {
+      if(ptr) {
 	memcpy(f->callback, &ptr, sizeof(void*));
       }
-    } else {
-      MPII_PRINTF(1, "No need to instrument %s because of binary instrumentation\n", f->function_name);
     }
   }
   recursion_shield--;
