@@ -2,6 +2,16 @@ cmake_minimum_required(VERSION 3.1)
 
 file(GLOB mpi_function_files mpi_funcs/*.c mpi_funcs/*.h)
 
+add_executable(mpi-interceptor-bin
+  mpi_interceptor.c
+)
+
+target_include_directories(mpi-interceptor-bin
+  PRIVATE
+    ${MPI_C_INCLUDE_PATH}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
 add_library(mpi-interceptor SHARED
   ${mpi_function_files}
   mpi.c
@@ -45,3 +55,7 @@ install(TARGETS mpi-interceptor
   INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
+set_target_properties(mpi-interceptor-bin
+        PROPERTIES OUTPUT_NAME mpi_interceptor)
+
+install(TARGETS mpi-interceptor-bin DESTINATION bin)

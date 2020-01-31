@@ -1,15 +1,13 @@
 #pragma once
 #define _GNU_SOURCE
 #include <dlfcn.h>
-#include <mpi.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <mpi.h>
 #include "mpii_macros.h"
-
-#define INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
-
+#include "mpii_config.h"
 
 struct ezt_instrumented_function {
   char function_name[1024];
@@ -19,47 +17,6 @@ struct ezt_instrumented_function {
 
 extern struct ezt_instrumented_function hijack_list[];
 #define INSTRUMENTED_FUNCTIONS hijack_list
-
-#if MPI_VERSION >= 3
-/* Use MPI 3 */
-
-/* In MPI3, the prototype of some MPI functions have change.
- * For instance, in MPI2.X, the prototype of MPI_Send was:
- * int MPI_Send(void* buffer, [...]);
- * In MPI3, MPI_Send is defined as:
- * int MPI_Send(const void* buffer, [...]);
- * In order to fix this prototype issue, let's define a CONST macro
- */
-#define CONST const
-
-#ifndef USE_MPI3
-#define USE_MPI3
-#endif
-
-#else
-/* This is MPI 2.X */
-
-#define CONST
-
-#ifdef USE_MPI3
-#undef USE_MPI3
-#endif
-
-#endif
-
-#ifdef __GNUC__
-#define MAYBE_UNUSED __attribute__((unused))
-#define FALLTHROUGH __attribute__((fallthrough))
-#define COLD __attribute__((cold))
-#define REENTRANT __attribute__((const))
-#define NODISCARD __attribute__((warn_unused_result))
-#else
-#define MAYBE_UNUSED
-#define FALLTHROUGH
-#define COLD
-#define REENTRANT
-#define NODISCARD
-#endif
 
 struct mpii_info {
   int rank;
@@ -71,7 +28,7 @@ struct mpii_info {
   int mpi_comm_world;
   int mpi_comm_self;
 
-  int debug_level;
+  struct mpii_settings settings;
 };
 /* information on the local process */
 extern struct mpii_info mpii_infos;
@@ -86,7 +43,7 @@ extern struct mpii_info mpii_infos;
 
 #define MPII_PRINTF(_debug_level_, ...)            \
   {                                               \
-    if (mpii_infos.debug_level >= _debug_level_) \
+    if (mpii_infos.settings.verbose >= _debug_level_) \
       fprintf(stderr, __VA_ARGS__);               \
   }
 
@@ -432,3 +389,5 @@ static void instrument_functions(struct ezt_instrumented_function* functions) {
       instrument_function(f);						\
     }									\
 } while(0)
+
+

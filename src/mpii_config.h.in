@@ -1,0 +1,52 @@
+#pragma once
+
+#define INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
+
+#if MPI_VERSION >= 3
+/* Use MPI 3 */
+
+/* In MPI3, the prototype of some MPI functions have change.
+ * For instance, in MPI2.X, the prototype of MPI_Send was:
+ * int MPI_Send(void* buffer, [...]);
+ * In MPI3, MPI_Send is defined as:
+ * int MPI_Send(const void* buffer, [...]);
+ * In order to fix this prototype issue, let's define a CONST macro
+ */
+#define CONST const
+
+#ifndef USE_MPI3
+#define USE_MPI3
+#endif
+
+#else
+/* This is MPI 2.X */
+
+#define CONST
+
+#ifdef USE_MPI3
+#undef USE_MPI3
+#endif
+
+#endif
+
+#ifdef __GNUC__
+#define MAYBE_UNUSED __attribute__((unused))
+#define FALLTHROUGH __attribute__((fallthrough))
+#define COLD __attribute__((cold))
+#define REENTRANT __attribute__((const))
+#define NODISCARD __attribute__((warn_unused_result))
+#else
+#define MAYBE_UNUSED
+#define FALLTHROUGH
+#define COLD
+#define REENTRANT
+#define NODISCARD
+#endif
+
+#define SETTINGS_VERBOSE_DEFAULT 1
+
+struct mpii_settings {
+  int verbose;
+};
+
+#define STRING_LENGTH 4096

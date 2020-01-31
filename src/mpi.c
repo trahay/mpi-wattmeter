@@ -824,19 +824,19 @@ static void reset_ld_preload() {
   }
 }
 
-static void load_env() {
+static void load_settings() {
   char* mpii_verbose = getenv("MPII_VERBOSE");
   if(mpii_verbose) {
-    mpii_infos.debug_level = atoi(mpii_verbose);
-    printf("[MPII] Debug level: %d\n", mpii_infos.debug_level);
+    mpii_infos.settings.verbose = atoi(mpii_verbose);
+    printf("[MPII] Debug level: %d\n", mpii_infos.settings.verbose);
   }
 }
 
 void mpii_init(void) __attribute__((constructor));
 void mpii_init(void) {
-  mpii_infos.debug_level=0;
+  mpii_infos.settings.verbose=SETTINGS_VERBOSE_DEFAULT;
   unset_ld_preload();
-  load_env();  
+  load_settings();  
   INSTRUMENT_ALL_FUNCTIONS();
 }
 

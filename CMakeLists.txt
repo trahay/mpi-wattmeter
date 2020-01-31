@@ -37,8 +37,8 @@ endif()
 # configure a header file to pass some of the CMake settings
 # to the source code
 configure_file (
-  "${PROJECT_SOURCE_DIR}/src/mpii.h.in"
-  "${PROJECT_BINARY_DIR}/src/mpii.h"
+  "${PROJECT_SOURCE_DIR}/src/mpii_config.h.in"
+  "${PROJECT_BINARY_DIR}/src/mpii_config.h"
   )
 
 # use, i.e. don't skip the full RPATH for the build tree
