@@ -70,7 +70,3 @@ add_subdirectory ("src")
 # add the binary tree to the search path for include files
 # so that we will find TutorialConfig.h
 install(TARGETS DESTINATION bin)
-
-
-
-# TODO: check whether MPI3 is implemented and set -DUSE_MPI3
