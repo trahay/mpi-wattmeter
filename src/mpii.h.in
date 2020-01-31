@@ -71,15 +71,14 @@ struct mpii_info {
   int mpi_comm_world;
   int mpi_comm_self;
 
-
   int debug_level;
 };
 /* information on the local process */
 extern struct mpii_info mpii_infos;
 
 #if 1
-#define FUNCTION_ENTRY_(fname) printf("[%d/%d]\tEntering %s\n", mpii_infos.rank, mpii_infos.size, fname);
-#define FUNCTION_EXIT_(fname)  printf("[%d/%d]\tLeaving %s\n", mpii_infos.rank, mpii_infos.size, fname);
+#define FUNCTION_ENTRY_(fname) MPII_PRINTF(2, "[%d/%d]\tEntering %s\n", mpii_infos.rank, mpii_infos.size, fname);
+#define FUNCTION_EXIT_(fname)  MPII_PRINTF(2, "[%d/%d]\tLeaving %s\n", mpii_infos.rank, mpii_infos.size, fname);
 #else
 #define FUNCTION_ENTRY_(fname) (void)0
 #define FUNCTION_EXIT_(fname)  (void)0

@@ -1,6 +1,6 @@
 /* -*- C-File-style: "GNU" -*- */
 /*
- * Copyright (C) CNRS, INRIA, Universite Bordeaux 1, Telecom SudParis
+ * Copyright (C) Telecom SudParis
  * See COPYING in top-level directory.
  */
 
@@ -18,11 +18,9 @@
 #include <sys/time.h>
 #include <sys/timeb.h>
 #include <unistd.h>
-
+#include <errno.h>
 
 #include <mpi.h>
-
-int mpi_verbose = 0;
 
 struct mpii_info mpii_infos; /* information on the local process */
 
@@ -406,8 +404,10 @@ int MPI_Type_size(MPI_Datatype datatype, int* size) {
 }
 
 int MPI_Finalize() {
-  printf("MPI_Finalize\n");
-  return libMPI_Finalize();
+  FUNCTION_ENTRY;
+  int ret = libMPI_Finalize();
+  FUNCTION_EXIT;
+  return ret;
 }
 
 
@@ -776,9 +776,67 @@ INTERCEPT3("mpi_start_", libmpi_start_)
 INTERCEPT3("mpi_startall_", libmpi_startall_)
 PPTRACE_END_INTERCEPT_FUNCTIONS(mpi)
 
+extern char**environ;
+char ld_preload_value[4096];
+
+/* unset LD_PRELOAD
+ * this makes sure that forked processes will not be analyzed
+ */
+static void unset_ld_preload() {
+  /* unset LD_PRELOAD */
+  char* ld_preload = getenv("LD_PRELOAD");
+  if(!ld_preload) {
+    ld_preload_value[0]='\0';
+    return;
+  }
+
+  /* save the value of ld_preload so that we can set it back later */
+  strncpy(ld_preload_value, ld_preload, 4096);
+  int ret = unsetenv("LD_PRELOAD");
+  if(ret != 0 ){
+    fprintf(stderr, "unsetenv failed ! %s\n", strerror(errno));
+    abort();
+  }
+
+  /* also change the environ variable since exec* function
+   * rely on it.
+   */
+  for (int i=0; environ[i]; i++) {
+    if (strstr(environ[i],"LD_PRELOAD=")) {
+      printf("hacking out LD_PRELOAD from environ[%d]\n",i);
+      environ[i][0] = '\0';
+    }
+  }
+  char*plop=getenv("LD_PRELOAD");
+  if(plop) {
+    fprintf(stderr, "Warning: cannot unset LD_PRELOAD\n");
+    fprintf(stderr, "This is likely to cause problems later.\n");
+  }
+}
+
+/* set LD_PRELOAD so that future forked processes are analyzed
+ *  you need to call unset_ld_preload before calling this function
+ */
+static void reset_ld_preload() {
+  if(strlen(ld_preload_value)>0) {
+    MPII_PRINTF(1, "Setting back ld_preload to %s\n", ld_preload_value);
+    setenv("LD_PRELOAD", ld_preload_value, 1);
+  }
+}
+
+static void load_env() {
+  char* mpii_verbose = getenv("MPII_VERBOSE");
+  if(mpii_verbose) {
+    mpii_infos.debug_level = atoi(mpii_verbose);
+    printf("[MPII] Debug level: %d\n", mpii_infos.debug_level);
+  }
+}
+
 void mpii_init(void) __attribute__((constructor));
 void mpii_init(void) {
-  mpii_infos.debug_level=1;
+  mpii_infos.debug_level=0;
+  unset_ld_preload();
+  load_env();  
   INSTRUMENT_ALL_FUNCTIONS();
 }
 
