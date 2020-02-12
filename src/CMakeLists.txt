@@ -58,4 +58,6 @@ install(TARGETS mpi-interceptor
 set_target_properties(mpi-interceptor-bin
         PROPERTIES OUTPUT_NAME mpi_interceptor)
 
-install(TARGETS mpi-interceptor-bin DESTINATION bin)
+install(TARGETS mpi-interceptor-bin
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)

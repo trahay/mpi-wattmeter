@@ -1,5 +1,7 @@
 cmake_minimum_required (VERSION 2.6)
 INCLUDE (CheckLibraryExists)
+include(GNUInstallDirs)
+
 find_package(PkgConfig)
 
 
