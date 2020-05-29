@@ -43,7 +43,7 @@
 #define NODISCARD
 #endif
 
-#define SETTINGS_VERBOSE_DEFAULT 1
+#define SETTINGS_VERBOSE_DEFAULT 0
 
 struct mpii_settings {
   int verbose;
