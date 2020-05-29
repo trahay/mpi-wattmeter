@@ -20,6 +20,8 @@ SET(PKG_CONFIG_CFLAGS  "-I\${includedir}"  )
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
+enable_language(C)
+enable_language(Fortran)
 option(ENABLE_MPI "Enable MPI" ON)
 
 if(ENABLE_MPI)
