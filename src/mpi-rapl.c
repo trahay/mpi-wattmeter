@@ -113,8 +113,9 @@ int start_rapl_perf() {
   fscanf(fff,"%d",&type);
   fclose(fff);
 
+  int domain_available[NUM_RAPL_DOMAINS];
   for(i=0;i<NUM_RAPL_DOMAINS;i++) {
-
+    domain_available[i] = 0;
     sprintf(filename,"/sys/bus/event_source/devices/power/events/%s",
 	    rapl_domain_names[i]);
 
@@ -144,6 +145,7 @@ int start_rapl_perf() {
       fscanf(fff,"%s",units[i]);
       fclose(fff);
     }
+    domain_available[i] = 1;
   }
 
   for(j=0;j<total_packages;j++) {
@@ -152,32 +154,34 @@ int start_rapl_perf() {
 
       fd[i][j]=-1;
 
-      memset(&attr,0x0,sizeof(attr));
-      attr.type=type;
-      attr.config=config[i];
-      if (config[i]==0) continue;
+      if(domain_available[i]) {
+	memset(&attr,0x0,sizeof(attr));
+	attr.type=type;
+	attr.config=config[i];
+	if (config[i]==0) continue;
 
-      fd[i][j]=perf_event_open(&attr,-1, package_map[j],-1,0);
-      if (fd[i][j]<0) {
-	if (errno==EACCES) {
-	  paranoid_value=check_paranoid();
-	  if (paranoid_value>0) {
-	    printf("\t/proc/sys/kernel/perf_event_paranoid is %d\n",paranoid_value);
-	    printf("\tThe value must be 0 or lower to read system-wide RAPL values\n");
+	fd[i][j]=perf_event_open(&attr,-1, package_map[j],-1,0);
+	if (fd[i][j]<0) {
+	  if (errno==EACCES) {
+	    paranoid_value=check_paranoid();
+	    if (paranoid_value>0) {
+	      printf("\t/proc/sys/kernel/perf_event_paranoid is %d\n",paranoid_value);
+	      printf("\tThe value must be 0 or lower to read system-wide RAPL values\n");
+	    }
+
+	    printf("\tPermission denied; run as root or adjust paranoid value\n\n");
+	    return -1;
 	  }
-
-	  printf("\tPermission denied; run as root or adjust paranoid value\n\n");
-	  return -1;
-	}
-	else {
-	  printf("\terror opening core %d config %d: %s\n\n",
-		 package_map[j], config[i], strerror(errno));
-	  return -1;
+	  else {
+	    printf("i=%d (%s)\n", i, rapl_domain_names[i]);
+	    printf("\terror opening core %d (%s) config %d: %s\n\n",
+		   package_map[j], config[i], rapl_domain_names[i], strerror(errno));
+	    return -1;
+	  }
 	}
       }
     }
   }
-
   return 0;
 }
 
@@ -192,21 +196,22 @@ int stop_rapl_perf(struct rapl_measurement *m) {
   int  namelen;
   MPI_Get_processor_name(m->hostname,&namelen);
 
-  for(int j=0;j<total_packages;j++) {
-    for(int i=0;i<NUM_RAPL_DOMAINS;i++) {
+  for(int i=0;i<NUM_RAPL_DOMAINS;i++) {
+    m->counter_value[i] = 0;
+    for(int j=0;j<total_packages;j++) {
       if (fd[i][j]!=-1) {
 	read(fd[i][j],&value,8);
 	close(fd[i][j]);
-	m->counter_value[i] = (double)value*scale[i];
+	m->counter_value[i] += (double)value*scale[i];
 
 	if(value > MAX_VALUE) {
 	  printf("Wow, that's a lot of joules ! (%"PRIu64")\n", value);
 	  abort();
 	}
-
       }
     }
   }
+
   return 0;
 }
 
