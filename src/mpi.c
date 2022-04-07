@@ -109,18 +109,16 @@ static void gather_measurements() {
 
     struct rapl_measurement m;
     stop_rapl_perf(&m);
-    if(mpii_infos.settings.print_details) {
-      print_rapl_measurement(&m, rank);
-    }
-
 
     struct rapl_measurement measurements[local_size];
     MPI_Gather(&m, sizeof(struct rapl_measurement), MPI_BYTE,
 	       measurements, sizeof(struct rapl_measurement), MPI_BYTE, 0, collect_comm);
     if(local_rank == 0) {
-      printf("There are %d measurements:\n", local_size);
-      for(int i=0; i<local_size; i++) {
-	print_rapl_measurement(&measurements[i], i);
+      if(mpii_infos.settings.print_details) {
+	printf("There are %d measurements:\n", local_size);
+	for(int i=0; i<local_size; i++) {
+	  print_rapl_measurement(&measurements[i], i);
+	}
       }
 
       printf("\n\nTotal:\n");
