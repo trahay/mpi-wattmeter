@@ -19,6 +19,7 @@ const char * argp_program_version="MPII dev";
 static struct argp_option options[] = {
 	{0, 0, 0, 0, "Output options:"},
 	{"verbose", 'v', 0, 0, "Produce verbose output" },
+	{"details", 'd', 0, 0, "Print detailed measurements" },
 
 	{0}
 };
@@ -31,6 +32,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
   switch(key) {
   case 'v':
     settings->verbose = 1;
+    break;
+  case 'd':
+    settings->print_details = 1;
     break;
 
   case ARGP_KEY_NO_ARGS:
@@ -93,6 +97,7 @@ int main(int argc, char**argv) {
   }while(0)
   
   setenv_int("MPII_VERBOSE", settings.verbose, 1);
+  setenv_int("MPII_PRINT_DETAILS", settings.print_details, 1);
   
   extern char** environ;
   int ret;

@@ -58,14 +58,14 @@ static int detect_packages(void) {
   }
   total_cores=i;
 
-  printf("[%d/%d] \tDetected %d cores in %d packages\n\n",
-	 mpii_infos.rank, mpii_infos.size, total_cores,total_packages);
+//  printf("[%d/%d] \tDetected %d cores in %d packages\n\n",
+//	 mpii_infos.rank, mpii_infos.size, total_cores,total_packages);
 
   return 0;
 }
 
 
-static int check_paranoid(void) {
+int check_paranoid(void) {
   int paranoid_value;
   FILE *fff;
 
@@ -86,6 +86,8 @@ static int check_paranoid(void) {
 
 int start_rapl_perf() {
   if( detect_packages() < 0 )
+    return -1;
+  if( check_paranoid() < 0)
     return -1;
 
   FILE *fff;
@@ -195,11 +197,12 @@ int stop_rapl_perf(struct rapl_measurement *m) {
 void print_rapl_measurement(struct rapl_measurement *m) {
   long long value;
   for(int j=0;j<total_packages;j++) {
-    printf("\tPackage %d:\n",j);
+    printf("[%s#%d]\tPackage %d:\n", mpii_infos.hostname, mpii_infos.rank, j);
     for(int i=0;i<NUM_RAPL_DOMAINS;i++) {
 
       if (fd[i][j]!=-1) {
-	printf("\t\t%s Energy Consumed: %lf %s (%lf watts.hour)\n",
+	printf("[%s#%d]\t\t%s Energy Consumed: %lf %s (%lf watts.hour)\n",
+	       mpii_infos.hostname, mpii_infos.rank,
 	       rapl_domain_names[i],
 	       m->counter_value[i],
 	       units[i],

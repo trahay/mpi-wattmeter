@@ -18,9 +18,11 @@
 #endif
 
 #define SETTINGS_VERBOSE_DEFAULT 0
+#define SETTINGS_PRINT_DETAILS_DEFAULT 0
 
 struct mpii_settings {
   int verbose;
+  int print_details;
 };
 
 #define STRING_LENGTH 4096

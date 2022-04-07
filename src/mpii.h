@@ -21,7 +21,7 @@ extern struct ezt_instrumented_function hijack_list[];
 struct mpii_info {
   int rank;
   int size;
-
+  char hostname[MPI_MAX_PROCESSOR_NAME];
   struct mpii_settings settings;
 };
 /* information on the local process */

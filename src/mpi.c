@@ -34,7 +34,90 @@ void (*libmpi_init_thread_)(int*, int*, int*);
 void (*libmpi_finalize_)(int*);
 
 static int __mpi_init_called = 0;
+static MPI_Comm local_master_comm;
+static int is_local_master = 0;
 
+/* Create a new communicator that contains one MPI rank (called local-master) 
+ * per compute node.
+ *
+ * return 1 if the current rank is a local-master or 0 otherwise
+ */
+static int create_communicator(MPI_Comm *local_comm) {
+  int rank;
+  int nprocs;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+
+  /* Create an array that contains all the hostnames */
+  char local_host_name[MPI_MAX_PROCESSOR_NAME];
+  int  namelen;
+  MPI_Get_processor_name(local_host_name,&namelen);
+   
+  size_t bytes = nprocs * sizeof(char[MPI_MAX_PROCESSOR_NAME]);
+  char *host_names;
+
+  host_names = malloc(bytes);
+  strcpy(&host_names[rank*MPI_MAX_PROCESSOR_NAME], local_host_name);
+ 
+  for (int n=0; n<nprocs; n++) { /* TODO: replace with a call to alltoall */
+    MPI_Bcast(&(host_names[n*MPI_MAX_PROCESSOR_NAME]),MPI_MAX_PROCESSOR_NAME, MPI_CHAR, n, MPI_COMM_WORLD);
+  }
+
+
+  /* color=0 means that we do not belong to the new communicator
+   */
+  int color = 0;
+  int found = 0;
+  /* Browse the hostnames array. Until the local hostname is found.
+   */
+  for (int n=0; n<nprocs && (!found) ; n++) {
+    if(strcmp(&host_names[n*MPI_MAX_PROCESSOR_NAME], local_host_name) == 0) {
+      if(n==rank) {
+	/* i'm the local master */
+	color = 1;
+      }
+      found = 1;     
+    }
+  }
+
+  /* Create a communicator with all the "local master" ranks */
+  int local_rank=-1;
+  int local_size=-1;
+  MPI_Comm_split(MPI_COMM_WORLD,
+		 color,
+		 MPI_INFO_NULL,
+		 local_comm);
+  if(color) {
+    return 1;
+  } else {
+    /* non local-master ranks don't need the communicator */
+    MPI_Comm_free(local_comm);
+    return 0;
+  }
+}
+
+static void gather_measurements() {
+  MPI_Comm collect_comm;
+  int ret = create_communicator(&collect_comm);
+  int local_rank = -1;
+  int local_size = -1;
+  if(ret) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_rank(collect_comm, &local_rank);
+    MPI_Comm_size(collect_comm, &local_size);
+    printf("My rank is %d. local: %d/%d\n",
+	   rank, local_rank, local_size);
+
+    struct rapl_measurement m;
+    stop_rapl_perf(&m);
+    if(mpii_infos.settings.print_details) {
+      print_rapl_measurement(&m);
+    }
+
+  }
+
+}
 
 /* internal function
  * This function is used by the various MPI_Init* functions (C
@@ -48,23 +131,23 @@ void __mpi_init_generic() {
   __mpi_init_called = 1;
   MPI_Comm_size(MPI_COMM_WORLD, &mpii_infos.size);
   MPI_Comm_rank(MPI_COMM_WORLD, &mpii_infos.rank);
-  printf("[%d/%d] MPI_Init\n", mpii_infos.rank, mpii_infos.size);
-  
-  if(mpii_infos.rank == 0) {
-    start_rapl_perf();
+  int  namelen;
+  MPI_Get_processor_name(mpii_infos.hostname,&namelen);
+
+  is_local_master = create_communicator(&local_master_comm);
+  if(is_local_master) {
+    if(start_rapl_perf()<0) {
+      printf("[%d/%d] Start RAPL failed on node %s\n",
+	     mpii_infos.rank, mpii_infos.size, mpii_infos.hostname);
+      abort();
+    }
   }
 }
 
-
 int MPI_Finalize() {
   FUNCTION_ENTRY;
-  printf("[%d/%d] MPI_Init\n", mpii_infos.rank, mpii_infos.size);
-  if(mpii_infos.rank == 0) {
-    struct rapl_measurement m;
-    stop_rapl_perf(&m);
-    print_rapl_measurement(&m);
-  }
-
+  //  printf("[%d/%d] MPI_Init\n", mpii_infos.rank, mpii_infos.size);
+  gather_measurements();
   int ret = libMPI_Finalize();
   FUNCTION_EXIT;
   return ret;
@@ -165,7 +248,11 @@ static void load_settings() {
   char* mpii_verbose = getenv("MPII_VERBOSE");
   if(mpii_verbose) {
     mpii_infos.settings.verbose = atoi(mpii_verbose);
-    printf("[MPII] Debug level: %d\n", mpii_infos.settings.verbose);
+    //    printf("[MPII] Debug level: %d\n", mpii_infos.settings.verbose);
+  }
+  char* mpii_details = getenv("MPII_PRINT_DETAILS");
+  if(mpii_details) {
+    mpii_infos.settings.print_details = atoi(mpii_details);
   }
 }
 
