@@ -6,7 +6,7 @@ MPI-Wattmeter measures the power consumption of MPI programs.
 
 
 ```bash
-mpirun mpi_interceptor [options] myappli
+mpirun mpi_wattmeter [options] myappli
 ```
 
 

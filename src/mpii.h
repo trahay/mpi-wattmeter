@@ -168,3 +168,29 @@ static void instrument_functions(struct ezt_instrumented_function* functions) {
 } while(0)
 
 
+enum rapl_domain {
+  energy_cores,
+  energy_gpu,
+  energy_pkg,
+  energy_ram,
+  energy_psys,
+  NUM_RAPL_DOMAINS
+};
+
+static char rapl_domain_names[NUM_RAPL_DOMAINS][30] = {
+  "energy-cores",
+  "energy-gpu",
+  "energy-pkg",
+  "energy-ram",
+  "energy-psys",
+};
+
+struct rapl_measurement {
+  /* energy consummed by the domain (in Joule) */
+  double counter_value[NUM_RAPL_DOMAINS];
+};
+
+int start_rapl_perf();
+double joules_to_watthour(double joules);
+int stop_rapl_perf(struct rapl_measurement *m);
+void print_rapl_measurement(struct rapl_measurement *m);

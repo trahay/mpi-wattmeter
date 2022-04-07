@@ -12,17 +12,4 @@
  */
 void __mpi_init_generic();
 
-void mpif_init_(void* error) {
-  libmpi_init_((int*)error);
-  __mpi_init_generic();
-}
 
-void mpif_init_thread_(int* r, int* p, int* error) {
-  libmpi_init_thread_(r, p, error);
-  __mpi_init_generic();
-}
-
-/* For all the remaining Fortran functions, we can just call the C version */
-void mpif_finalize_(int* error) {
-  *error = MPI_Finalize();
-}

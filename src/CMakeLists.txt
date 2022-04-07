@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.1)
 
 add_executable(mpi-wattmeter-bin
   mpi_wattmeter.c
-)
+  )
 
 target_include_directories(mpi-wattmeter-bin
   PRIVATE
@@ -15,7 +15,8 @@ add_library(mpi-wattmeter SHARED
   mpi.c
   mpi_f.f90
   mpi_fortran.c
-)
+  mpi-rapl.c
+  )
 
 target_include_directories(mpi-wattmeter
   PRIVATE
