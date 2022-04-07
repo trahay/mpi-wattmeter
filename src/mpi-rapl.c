@@ -86,10 +86,14 @@ int check_paranoid(void) {
 }
 
 int start_rapl_perf() {
-  if( detect_packages() < 0 )
+  if( detect_packages() < 0 ) {
+    printf("detect packge failed\n");
     return -1;
-  if( check_paranoid() < 0)
+  }
+  if( check_paranoid() == 500) {
+    printf("Check paranoid failed\n");
     return -1;
+  }
 
   FILE *fff;
   int type;
