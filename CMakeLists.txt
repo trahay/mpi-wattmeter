@@ -1,11 +1,12 @@
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required (VERSION 3.1)
+
 INCLUDE (CheckLibraryExists)
 include(GNUInstallDirs)
 
 find_package(PkgConfig)
 
 
-project (MPI_Interceptor)
+project (MPI_RAPL)
 set (MPII_VERSION_MAJOR 0)
 set (MPII_VERSION_MINOR 1)
 SET(PROJECT_VERSION "${MPII_VERSION_MAJOR}.${MPII_VERSION_MINOR}")

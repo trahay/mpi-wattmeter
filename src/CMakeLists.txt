@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.1)
 
-file(GLOB mpi_function_files mpi_funcs/*.c mpi_funcs/*.h)
 
 add_executable(mpi-interceptor-bin
   mpi_interceptor.c
@@ -13,10 +12,7 @@ target_include_directories(mpi-interceptor-bin
 )
 
 add_library(mpi-interceptor SHARED
-  ${mpi_function_files}
   mpi.c
-  mpi3_f.f90
-  fortran_utils.f90
   mpi_f.f90
   mpi_fortran.c
 )
