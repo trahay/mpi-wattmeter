@@ -7,9 +7,9 @@
 
 const char prefix[] = INSTALL_PREFIX;
 
-const char *program_version = "mpi_interceptor";
+const char *program_version = "mpi_wattmeter";
 const char *program_bug_address = "";
-static char doc[] = "mpi_interceptor description";
+static char doc[] = "mpi_wattmeter description";
 static char args_doc[] = "target_application [TARGET OPTIONS]";
 const char * argp_program_version="MPII dev";
 
@@ -80,7 +80,7 @@ int main(int argc, char**argv) {
     strcat(ld_preload, ":");
   }
   strcat(ld_preload, prefix);
-  strcat(ld_preload, "/lib/libmpi-interceptor.so");
+  strcat(ld_preload, "/lib/libmpi-wattmeter.so");
 	
   setenv("LD_PRELOAD", ld_preload, 1);
 

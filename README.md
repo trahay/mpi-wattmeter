@@ -1,6 +1,6 @@
-# MPI Interceptor
+# MPI-Wattmeter
 
-MPI Interceptor is a library that intercept an application calls to MPI, and applies optimizations.
+MPI-Wattmeter measures the power consumption of MPI programs.
 
 ## Running an application
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #define INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
+#define INSTALL_LIBDIR "@CMAKE_INSTALL_LIBDIR@"
 
 #ifdef __GNUC__
 #define MAYBE_UNUSED __attribute__((unused))

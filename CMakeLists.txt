@@ -1,16 +1,21 @@
 cmake_minimum_required (VERSION 3.1)
 
+project (MPI_WATTMETER
+    LANGUAGES C
+)
+set (MPII_VERSION_MAJOR 0)
+set (MPII_VERSION_MINOR 1)
+SET(PROJECT_VERSION "${MPII_VERSION_MAJOR}.${MPII_VERSION_MINOR}")
+SET(PROJECT_DESCRIPTION "MPI Wattmeter measures the power consumption of MPI programs.")
+
+
+
 INCLUDE (CheckLibraryExists)
 include(GNUInstallDirs)
 
 find_package(PkgConfig)
 
 
-project (MPI_RAPL)
-set (MPII_VERSION_MAJOR 0)
-set (MPII_VERSION_MINOR 1)
-SET(PROJECT_VERSION "${MPII_VERSION_MAJOR}.${MPII_VERSION_MINOR}")
-SET(PROJECT_DESCRIPTION "MPI Interceptor (MPII) is a runtime system that intercepts calls to MPI functions and optimize communications.")
 
 cmake_policy(SET CMP0074 NEW)
 
