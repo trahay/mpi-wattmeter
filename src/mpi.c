@@ -106,15 +106,27 @@ static void gather_measurements() {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_rank(collect_comm, &local_rank);
     MPI_Comm_size(collect_comm, &local_size);
-    printf("My rank is %d. local: %d/%d\n",
-	   rank, local_rank, local_size);
 
     struct rapl_measurement m;
     stop_rapl_perf(&m);
     if(mpii_infos.settings.print_details) {
-      print_rapl_measurement(&m);
+      print_rapl_measurement(&m, rank);
     }
 
+
+    struct rapl_measurement measurements[local_size];
+    MPI_Gather(&m, sizeof(struct rapl_measurement), MPI_BYTE,
+	       measurements, sizeof(struct rapl_measurement), MPI_BYTE, 0, collect_comm);
+    if(local_rank == 0) {
+      printf("There are %d measurements:\n", local_size);
+      for(int i=0; i<local_size; i++) {
+	print_rapl_measurement(&measurements[i], i);
+      }
+
+      printf("\n\nTotal:\n");
+      print_rapl_measurements(measurements, local_size);
+
+    }
   }
 
 }
@@ -248,7 +260,6 @@ static void load_settings() {
   char* mpii_verbose = getenv("MPII_VERBOSE");
   if(mpii_verbose) {
     mpii_infos.settings.verbose = atoi(mpii_verbose);
-    //    printf("[MPII] Debug level: %d\n", mpii_infos.settings.verbose);
   }
   char* mpii_details = getenv("MPII_PRINT_DETAILS");
   if(mpii_details) {

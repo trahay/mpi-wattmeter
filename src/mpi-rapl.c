@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <inttypes.h>
 
 
 #define MAX_CPUS	1024
@@ -180,36 +181,95 @@ double joules_to_watthour(double joules) {
   return joules/3600;
 }
 
+#define MAX_VALUE 1e30
+
 int stop_rapl_perf(struct rapl_measurement *m) {
   long long value;
+  int  namelen;
+  MPI_Get_processor_name(m->hostname,&namelen);
+
   for(int j=0;j<total_packages;j++) {
     for(int i=0;i<NUM_RAPL_DOMAINS;i++) {
       if (fd[i][j]!=-1) {
 	read(fd[i][j],&value,8);
 	close(fd[i][j]);
 	m->counter_value[i] = (double)value*scale[i];
+
+	if(value > MAX_VALUE) {
+	  printf("Wow, that's a lot of joules ! (%"PRIu64")\n", value);
+	  abort();
+	}
+
       }
     }
   }
   return 0;
 }
 
-void print_rapl_measurement(struct rapl_measurement *m) {
+void print_rapl_measurement(struct rapl_measurement *m, int mpi_rank) {
   long long value;
-  for(int j=0;j<total_packages;j++) {
-    printf("[%s#%d]\tPackage %d:\n", mpii_infos.hostname, mpii_infos.rank, j);
-    for(int i=0;i<NUM_RAPL_DOMAINS;i++) {
-
-      if (fd[i][j]!=-1) {
-	printf("[%s#%d]\t\t%s Energy Consumed: %lf %s (%lf watts.hour)\n",
-	       mpii_infos.hostname, mpii_infos.rank,
-	       rapl_domain_names[i],
-	       m->counter_value[i],
-	       units[i],
-	       joules_to_watthour(m->counter_value[i]));
-
+  for(int i=0;i<NUM_RAPL_DOMAINS;i++) {
+    if(m->counter_value[i] > 0 ) {
+      printf("[%s#%d]\t\t%s Energy Consumed: %lf %s (%lf watts.hour)\n",
+	     m->hostname, mpi_rank,
+	     rapl_domain_names[i],
+	     m->counter_value[i],
+	     units[i],
+	     joules_to_watthour(m->counter_value[i]));
+      if(m->counter_value[i] > MAX_VALUE) {
+	printf("Wow, that's a lot of joules ! (%"PRIu64")\n", (uint64_t)m->counter_value[i]);
+	abort();
       }
     }
   }
   printf("\n");
+}
+
+static void init_measurement(struct rapl_measurement *m) {
+  for(int i=0;i<NUM_RAPL_DOMAINS;i++) {
+    m->counter_value[i] = 0;
+  }
+  m->hostname[0]='\0';
+}
+
+void print_rapl_measurements(struct rapl_measurement *m, int nb) {
+  struct rapl_measurement min;
+  struct rapl_measurement max;
+  struct rapl_measurement total;
+  struct rapl_measurement avg;
+  init_measurement(&min);
+  init_measurement(&max);
+  init_measurement(&total);
+  init_measurement(&avg);
+
+  for(int j=0;j<NUM_RAPL_DOMAINS;j++) {
+    int nb_val = 0;
+    for(int i=0; i<nb; i++) {
+      if(m[i].counter_value[j] > 0 ) {
+	nb_val++;
+	if(m[i].counter_value[j] < min.counter_value[j] || min.counter_value[j] == 0)
+	  min.counter_value[j] = m[i].counter_value[j];
+
+	if(m[i].counter_value[j] > max.counter_value[j] || max.counter_value[j] == 0)
+	  max.counter_value[j] = m[i].counter_value[j];
+
+	total.counter_value[j] += m[i].counter_value[j];
+      }
+    }
+    if(nb_val > 0 ) {
+      avg.counter_value[j]=total.counter_value[j]/nb_val;
+      printf("[Total]\t\t%s Energy Consumed (total/avg/min/max): %lf/%lf/%lf/%lf %s (%lf/%lf/%lf/%lf watts.hour)\n",
+	     rapl_domain_names[j],
+	     total.counter_value[j],
+	     avg.counter_value[j],
+	     min.counter_value[j],
+	     max.counter_value[j],
+	     units[j],
+	     joules_to_watthour(total.counter_value[j]),
+	     joules_to_watthour(avg.counter_value[j]),
+	     joules_to_watthour(min.counter_value[j]),
+	     joules_to_watthour(max.counter_value[j])
+	     );
+    }
+  }
 }

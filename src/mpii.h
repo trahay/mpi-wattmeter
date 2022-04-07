@@ -188,9 +188,10 @@ static char rapl_domain_names[NUM_RAPL_DOMAINS][30] = {
 struct rapl_measurement {
   /* energy consummed by the domain (in Joule) */
   double counter_value[NUM_RAPL_DOMAINS];
+  char hostname[MPI_MAX_PROCESSOR_NAME];
 };
 
 int start_rapl_perf();
 double joules_to_watthour(double joules);
 int stop_rapl_perf(struct rapl_measurement *m);
-void print_rapl_measurement(struct rapl_measurement *m);
+void print_rapl_measurement(struct rapl_measurement *m, int mpi_rank);
