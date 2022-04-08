@@ -21,7 +21,7 @@ list(APPEND mpi-wattmeter_SOURCES
   mpi.c
   mpi-measurement.c
   mpi-rapl.c
-  )
+  mpi-nvml.c  )
 
 if(ENABLE_FORTRAN)
   # mpif.h may define a bunch of unused parameter which would generate lots of warnings
@@ -33,8 +33,9 @@ if(ENABLE_FORTRAN)
 endif()
 
 
-if(ENABLE_NVML)
-    list(APPEND mpi-wattmeter_SOURCES mpi-nvml.c)  
+if(NOT ENABLE_NVML)
+  set(NVML_INCLUDE_DIR "")
+  set(NVML_LIBRARY "")
 endif()
 
 add_library(mpi-wattmeter SHARED

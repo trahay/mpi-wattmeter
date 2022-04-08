@@ -86,11 +86,11 @@ int mpi_nvml_init() {
   return 0;
 }
 
-int mpi_nvml_start(struct nvidia_measurement* m) {
+int mpi_nvml_start(struct nvidia_measurement* m MAYBE_UNUSED) {
   return 0;
 }
 
-int mpi_nvml_stop(struct nvidia_measurement* m) {
+int mpi_nvml_stop(struct nvidia_measurement* m MAYBE_UNUSED) {
   return 0;
 }
 #endif
