@@ -100,7 +100,6 @@ int start_rapl_perf() {
   int config[NUM_RAPL_DOMAINS];
   char filename[BUFSIZ];
   struct perf_event_attr attr;
-  long long value;
   int i,j;
   int paranoid_value;
 
@@ -175,7 +174,7 @@ int start_rapl_perf() {
 	  else {
 	    printf("i=%d (%s)\n", i, rapl_domain_names[i]);
 	    printf("\terror opening core %d (%s) config %d: %s\n\n",
-		   package_map[j], config[i], rapl_domain_names[i], strerror(errno));
+		   package_map[j], rapl_domain_names[i], config[i], strerror(errno));
 	    return -1;
 	  }
 	}
@@ -205,7 +204,7 @@ int stop_rapl_perf(struct rapl_measurement *m) {
 	m->counter_value[i] += (double)value*scale[i];
 
 	if(value > MAX_VALUE) {
-	  printf("Wow, that's a lot of joules ! (%"PRIu64")\n", value);
+	  printf("Wow, that's a lot of joules ! (%lld)\n", value);
 	  abort();
 	}
       }
@@ -216,7 +215,6 @@ int stop_rapl_perf(struct rapl_measurement *m) {
 }
 
 void print_rapl_measurement(struct rapl_measurement *m, int mpi_rank) {
-  long long value;
   for(int i=0;i<NUM_RAPL_DOMAINS;i++) {
     if(m->counter_value[i] > 0 ) {
       printf("[%s#%d]\t\t%s Energy Consumed: %lf %s (%lf watts.hour)\n",

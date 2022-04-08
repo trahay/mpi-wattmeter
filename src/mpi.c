@@ -76,13 +76,11 @@ static int create_communicator(MPI_Comm *local_comm) {
 	/* i'm the local master */
 	color = 1;
       }
-      found = 1;     
+      found = 1;
     }
   }
 
   /* Create a communicator with all the "local master" ranks */
-  int local_rank=-1;
-  int local_size=-1;
   MPI_Comm_split(MPI_COMM_WORLD,
 		 color,
 		 MPI_INFO_NULL,
@@ -97,22 +95,21 @@ static int create_communicator(MPI_Comm *local_comm) {
 }
 
 static void gather_measurements() {
-  MPI_Comm collect_comm;
-  int ret = create_communicator(&collect_comm);
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   int local_rank = -1;
   int local_size = -1;
-  if(ret) {
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_rank(collect_comm, &local_rank);
-    MPI_Comm_size(collect_comm, &local_size);
+  MPI_Barrier(MPI_COMM_WORLD);
+  if(is_local_master) {
+    MPI_Comm_rank(local_master_comm, &local_rank);
+    MPI_Comm_size(local_master_comm, &local_size);
 
     struct rapl_measurement m;
     stop_rapl_perf(&m);
 
     struct rapl_measurement measurements[local_size];
     MPI_Gather(&m, sizeof(struct rapl_measurement), MPI_BYTE,
-	       measurements, sizeof(struct rapl_measurement), MPI_BYTE, 0, collect_comm);
+	       measurements, sizeof(struct rapl_measurement), MPI_BYTE, 0, local_master_comm);
     if(local_rank == 0) {
       if(mpii_infos.settings.print_details) {
 	printf("There are %d measurements:\n", local_size);
@@ -156,7 +153,6 @@ void __mpi_init_generic() {
 
 int MPI_Finalize() {
   FUNCTION_ENTRY;
-  //  printf("[%d/%d] MPI_Init\n", mpii_infos.rank, mpii_infos.size);
   gather_measurements();
   int ret = libMPI_Finalize();
   FUNCTION_EXIT;
@@ -247,7 +243,8 @@ static void unset_ld_preload() {
 /* set LD_PRELOAD so that future forked processes are analyzed
  *  you need to call unset_ld_preload before calling this function
  */
-static void reset_ld_preload() {
+static void reset_ld_preload() MAYBE_UNUSED;
+static void reset_ld_preload() {  
   if(strlen(ld_preload_value)>0) {
     MPII_PRINTF(1, "Setting back ld_preload to %s\n", ld_preload_value);
     setenv("LD_PRELOAD", ld_preload_value, 1);

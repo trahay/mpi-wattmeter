@@ -195,3 +195,4 @@ int start_rapl_perf();
 double joules_to_watthour(double joules);
 int stop_rapl_perf(struct rapl_measurement *m);
 void print_rapl_measurement(struct rapl_measurement *m, int mpi_rank);
+void print_rapl_measurements(struct rapl_measurement *m, int nb);

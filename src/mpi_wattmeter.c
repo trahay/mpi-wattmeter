@@ -58,6 +58,7 @@ int main(int argc, char**argv) {
   
   // Default values
   settings.verbose = SETTINGS_VERBOSE_DEFAULT;
+  settings.print_details = SETTINGS_PRINT_DETAILS_DEFAULT;
 
   // first divide argv between mpii options and target file and
   // options optionnal todo : better target detection : it should be
