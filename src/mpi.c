@@ -19,12 +19,11 @@
 #include <sys/timeb.h>
 #include <unistd.h>
 #include <errno.h>
+#include <inttypes.h>
 
 #include <mpi.h>
 struct mpii_info mpii_infos; /* information on the local process */
 
-static int nb_gpus = 0;
-struct nvidia_measurement* gpu_measurements = 0;
 /* pointers to actual MPI functions (C version)  */
 int (*libMPI_Init)(int*, char***);
 int (*libMPI_Init_thread)(int*, char***, int, int*);
@@ -36,33 +35,24 @@ void (*libmpi_init_thread_)(int*, int*, int*);
 void (*libmpi_finalize_)(int*);
 
 static int __mpi_init_called = 0;
-static MPI_Comm local_master_comm;
-static int is_local_master = 0;
 
 /* Create a new communicator that contains one MPI rank (called local-master) 
  * per compute node.
  *
  * return 1 if the current rank is a local-master or 0 otherwise
  */
-static int create_communicator(MPI_Comm *local_comm) {
-  int rank;
-  int nprocs;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+static int create_communicator() {
+  int rank = mpii_infos.rank;
+  int nprocs= mpii_infos.size;
 
-  /* Create an array that contains all the hostnames */
-  char local_host_name[MPI_MAX_PROCESSOR_NAME];
-  int  namelen;
-  MPI_Get_processor_name(local_host_name,&namelen);
-   
+  /* Create an array that contains all the hostnames */ 
   size_t bytes = nprocs * sizeof(char[MPI_MAX_PROCESSOR_NAME]);
-  char *host_names;
 
-  host_names = malloc(bytes);
-  strcpy(&host_names[rank*MPI_MAX_PROCESSOR_NAME], local_host_name);
+  mpii_infos.hostnames = malloc(bytes);
+  strcpy(get_rank_hostname(rank), mpii_infos.hostname);
  
   for (int n=0; n<nprocs; n++) { /* TODO: replace with a call to alltoall */
-    MPI_Bcast(&(host_names[n*MPI_MAX_PROCESSOR_NAME]),MPI_MAX_PROCESSOR_NAME, MPI_CHAR, n, MPI_COMM_WORLD);
+    MPI_Bcast(get_rank_hostname(n),MPI_MAX_PROCESSOR_NAME, MPI_CHAR, n, MPI_COMM_WORLD);
   }
 
 
@@ -73,7 +63,7 @@ static int create_communicator(MPI_Comm *local_comm) {
   /* Browse the hostnames array. Until the local hostname is found.
    */
   for (int n=0; n<nprocs && (!found) ; n++) {
-    if(strcmp(&host_names[n*MPI_MAX_PROCESSOR_NAME], local_host_name) == 0) {
+    if(strcmp(get_rank_hostname(n), mpii_infos.hostname) == 0) {
       if(n==rank) {
 	/* i'm the local master */
 	color = 1;
@@ -86,56 +76,22 @@ static int create_communicator(MPI_Comm *local_comm) {
   MPI_Comm_split(MPI_COMM_WORLD,
 		 color,
 		 MPI_INFO_NULL,
-		 local_comm);
+		 &mpii_infos.local_master_comm);
   if(color) {
+    MPI_Comm_rank(mpii_infos.local_master_comm, &mpii_infos.local_rank);
+    MPI_Comm_size(mpii_infos.local_master_comm, &mpii_infos.local_size);
+    mpii_infos.is_local_master = 1;
     return 1;
   } else {
     /* non local-master ranks don't need the communicator */
-    MPI_Comm_free(local_comm);
+    mpii_infos.local_size = -1;
+    mpii_infos.local_rank = -1;
+    mpii_infos.is_local_master = 0;
+    MPI_Comm_free(&mpii_infos.local_master_comm);
     return 0;
   }
 }
 
-static void gather_measurements() {
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  int local_rank = -1;
-  int local_size = -1;
-  MPI_Barrier(MPI_COMM_WORLD);
-  if(is_local_master) {
-    MPI_Comm_rank(local_master_comm, &local_rank);
-    MPI_Comm_size(local_master_comm, &local_size);
-
-    struct rapl_measurement m;
-    stop_rapl_perf(&m);
-
-    struct rapl_measurement measurements[local_size];
-    MPI_Gather(&m, sizeof(struct rapl_measurement), MPI_BYTE,
-	       measurements, sizeof(struct rapl_measurement), MPI_BYTE, 0, local_master_comm);
-
-
-    mpi_nvml_stop(gpu_measurements);
-
-    struct nvidia_measurement nvidia_measurements[local_size];
-    MPI_Gather(gpu_measurements, sizeof(struct nvidia_measurement)*nb_gpus, MPI_BYTE,
-	       nvidia_measurements, sizeof(struct nvidia_measurement)*nb_gpus, MPI_BYTE,
-	       0, local_master_comm);
-
-    if(local_rank == 0) {
-      if(mpii_infos.settings.print_details) {
-	printf("There are %d measurements:\n", local_size);
-	for(int i=0; i<local_size; i++) {
-	  print_rapl_measurement(&measurements[i], i);
-	}
-      }
-
-      printf("\n\nTotal:\n");
-      print_rapl_measurements(measurements, local_size);
-      print_gpu_measurements(nvidia_measurements, local_size);
-    }
-  }
-
-}
 
 /* internal function
  * This function is used by the various MPI_Init* functions (C
@@ -147,24 +103,21 @@ void __mpi_init_generic() {
   if(__mpi_init_called) return;
 
   __mpi_init_called = 1;
+  mpii_infos.mpi_mode = 1;
   MPI_Comm_size(MPI_COMM_WORLD, &mpii_infos.size);
   MPI_Comm_rank(MPI_COMM_WORLD, &mpii_infos.rank);
-  int  namelen;
-  MPI_Get_processor_name(mpii_infos.hostname,&namelen);
 
-  is_local_master = create_communicator(&local_master_comm);
-  if(is_local_master) {
-    if(start_rapl_perf()<0) {
-      printf("[%d/%d] Start RAPL failed on node %s\n",
-	     mpii_infos.rank, mpii_infos.size, mpii_infos.hostname);
-      abort();
-    }
+  create_communicator(&mpii_infos.local_master_comm);
+  if(mpii_infos.is_local_master) {
+    start_measurements();
   }
 }
 
 int MPI_Finalize() {
   FUNCTION_ENTRY;
-  gather_measurements();
+  stop_measurements();
+  print_measurements();
+
   int ret = libMPI_Finalize();
   FUNCTION_EXIT;
   return ret;
@@ -280,12 +233,15 @@ void mpii_init(void) {
   load_settings();  
   INSTRUMENT_ALL_FUNCTIONS();
 
-  nb_gpus = mpi_nvml_init();
-  gpu_measurements = malloc(nb_gpus * sizeof(struct nvidia_measurement));
-  mpi_nvml_start(gpu_measurements);
+  size_t  namelen = MPI_MAX_PROCESSOR_NAME;
+  gethostname(mpii_infos.hostname, namelen);
+
+  start_measurements();
 }
 
 void mpii_finish(void) __attribute__((destructor));
 void mpii_finish(void) {
+  stop_measurements();
+  print_measurements();
 }
 

@@ -80,51 +80,6 @@ int mpi_nvml_stop(struct nvidia_measurement* m) {
   return 0;  
 }
 
-static void init_measurement(struct nvidia_measurement *m) {
-  m->energy = 0;
-  m->device_name[0]='\0';
-}
-
-void print_gpu_measurements(struct nvidia_measurement* m, int local_size) {
-  struct nvidia_measurement min;
-  struct nvidia_measurement max;
-  struct nvidia_measurement total;
-  struct nvidia_measurement avg;
-  init_measurement(&min);
-  init_measurement(&max);
-  init_measurement(&total);
-  init_measurement(&avg);
-  int total_gpus = 0;
-  for(unsigned i=0; i<dev_count; i++) {
-    for(int rank = 0; rank<local_size; rank++) {
-      struct nvidia_measurement *cur = &m[(rank*dev_count) + i];
-      if(min.energy < cur->energy || min.energy == 0)
-	min.energy = cur->energy;
-
-      if(max.energy > cur->energy || max.energy == 0)
-	max.energy = cur->energy;
-
-      total.energy += cur->energy;
-      total_gpus++;
-    }
-  }
-
-  if(total_gpus > 0 ) {
-    avg.energy=total.energy / total_gpus;
-    printf("[Total]\t\tGPU Energy Consumed (total/avg/min/max): %lf/%lf/%lf/%lf %s (%lf/%lf/%lf/%lf watts.hour)\n",
-	   total.energy,
-	   avg.energy,
-	   min.energy,
-	   max.energy,
-	   "Joules",
-	   joules_to_watthour(total.energy),
-	   joules_to_watthour(avg.energy),
-	   joules_to_watthour(min.energy),
-	   joules_to_watthour(max.energy)
-	   );
-  }
-
-}
 
 #else
 int mpi_nvml_init() {

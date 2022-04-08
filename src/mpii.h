@@ -9,21 +9,54 @@
 #include "mpii_macros.h"
 #include "mpii_config.h"
 
-struct ezt_instrumented_function {
-  char function_name[1024];
-  void* callback;
-  int event_id;
+
+enum rapl_domain {
+  energy_cores,
+  energy_gpu,
+  energy_pkg,
+  energy_ram,
+  energy_psys,
+  NUM_RAPL_DOMAINS
 };
 
-extern struct ezt_instrumented_function hijack_list[];
-#define INSTRUMENTED_FUNCTIONS hijack_list
+static char rapl_domain_names[NUM_RAPL_DOMAINS][30] MAYBE_UNUSED = {
+  "energy-cores",
+  "energy-gpu",
+  "energy-pkg",
+  "energy-ram",
+  "energy-psys",
+};
+
+struct rapl_measurement {
+  /* energy consummed by the domain (in Joule) */
+  double counter_value[NUM_RAPL_DOMAINS];
+  //  char hostname[MPI_MAX_PROCESSOR_NAME];
+};
+
+struct nvidia_measurement {
+  char device_name[32];
+  double energy;	/* energy consumed by the GPU (in joule) */
+};
 
 struct mpii_info {
   int rank;
   int size;
   char hostname[MPI_MAX_PROCESSOR_NAME];
+  char *hostnames;
+
+  int nb_gpus;
+  struct nvidia_measurement* gpu_measurement;
+  struct rapl_measurement rapl_measurement;
+
+  int mpi_mode;	/* are we running an MPI application ? */
+  int is_local_master;		/* set to 1 if the rank is a local master */
+  MPI_Comm local_master_comm;	/* communicator for the local masters */
+  int local_rank;		/* rank in the communicator */
+  int local_size;		/* size of the communicator */
+
   struct mpii_settings settings;
 };
+
 /* information on the local process */
 extern struct mpii_info mpii_infos;
 
@@ -44,39 +77,20 @@ extern struct mpii_info mpii_infos;
 #define FUNCTION_ENTRY FUNCTION_ENTRY_(__func__);
 #define FUNCTION_EXIT  FUNCTION_EXIT_(__func__);
 
-/* maximum number of items to be allocated statically
- * if the application need more than this, a dynamic array
- * is allocated using malloc()
- */
-#define MAX_REQS 128
-
-/* allocate a number of elements using a static array if possible
- * if not possible (ie. count>MAX_REQS) use a dynamic array (ie. malloc)
- */
-#define ALLOCATE_ITEMS(type, count, static_var, dyn_var)	\
-  type static_var[MAX_REQS];					\
-  type* dyn_var = static_var;					\
-  if ((count) > MAX_REQS)					\
-    dyn_var = (type*)malloc(sizeof(type) * (count))
-
-/* Free an array created by ALLOCATE_ITEMS */
-#define FREE_ITEMS(count, dyn_var)		\
-  if ((count) > MAX_REQS)			\
-    free(dyn_var)
-
 /* pointers to actual MPI functions (C version)  */
 extern int (*libMPI_Init)(int*, char***);
 extern int (*libMPI_Init_thread)(int*, char***, int, int*);
 extern int (*libMPI_Finalize)(void);
 
-/* return 1 if buf corresponds to the Fotran MPI_IN_PLACE
- * return 0 otherwise
- */
-int ezt_mpi_is_in_place_(void* buf);
 
-/* check the value of a Fortran pointer and return MPI_IN_PLACE or p
- */
-#define CHECK_MPI_IN_PLACE(p) (ezt_mpi_is_in_place_(p) ? MPI_IN_PLACE : (p))
+struct ezt_instrumented_function {
+  char function_name[1024];
+  void* callback;
+  int event_id;
+};
+
+extern struct ezt_instrumented_function hijack_list[];
+#define INSTRUMENTED_FUNCTIONS hijack_list
 
 
 #define PPTRACE_START_INTERCEPT_FUNCTIONS(module_name) struct ezt_instrumented_function INSTRUMENTED_FUNCTIONS [] = {
@@ -168,39 +182,24 @@ static void instrument_functions(struct ezt_instrumented_function* functions) {
 } while(0)
 
 
-enum rapl_domain {
-  energy_cores,
-  energy_gpu,
-  energy_pkg,
-  energy_ram,
-  energy_psys,
-  NUM_RAPL_DOMAINS
-};
+/* maximum number of joules. If more than than , there's probably a bug */
+#define MAX_VALUE 1e30
 
-static char rapl_domain_names[NUM_RAPL_DOMAINS][30] = {
-  "energy-cores",
-  "energy-gpu",
-  "energy-pkg",
-  "energy-ram",
-  "energy-psys",
-};
+static inline double joules_to_watthour(double joules) {
+  return joules/3600;
+}
 
-struct rapl_measurement {
-  /* energy consummed by the domain (in Joule) */
-  double counter_value[NUM_RAPL_DOMAINS];
-  char hostname[MPI_MAX_PROCESSOR_NAME];
-};
 
-struct nvidia_measurement {
-  char device_name[32];
-  double energy;	/* energy consumed by the GPU (in joule) */
-};
-
-int start_rapl_perf();
-double joules_to_watthour(double joules);
-int stop_rapl_perf(struct rapl_measurement *m);
-void print_rapl_measurement(struct rapl_measurement *m, int mpi_rank);
-void print_rapl_measurements(struct rapl_measurement *m, int nb);
+void start_measurements();
+void stop_measurements();
+void print_measurements();
+ 
+/* Initialize RAPL */
+int mpi_rapl_init();
+/* Start the RAPL measurement */
+int mpi_rapl_start();
+/* Stop the RAPL measurement */
+int mpi_rapl_stop(struct rapl_measurement *m);
 
 /* initialize NVML.
  * Return the number of GPUs
@@ -212,3 +211,7 @@ int mpi_nvml_start(struct nvidia_measurement* m);
 
 /* Stop NVML measurement */
 int mpi_nvml_stop(struct nvidia_measurement* m);
+
+static inline char* get_rank_hostname(int rank) {
+  return &mpii_infos.hostnames[rank * MPI_MAX_PROCESSOR_NAME];
+}

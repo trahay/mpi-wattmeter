@@ -19,6 +19,7 @@ target_include_directories(mpi-wattmeter-bin
 set(mpi-wattmeter_SOURCES )
 list(APPEND mpi-wattmeter_SOURCES
   mpi.c
+  mpi-measurement.c
   mpi-rapl.c
   )
 
