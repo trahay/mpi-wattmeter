@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.1)
 
+# Compile this module with mpicc/mpif90
+set(CMAKE_C_COMPILER ${MPI_C_COMPILER})
+set(CMAKE_Fortran_COMPILER ${MPI_Fortran_COMPILER})
 
 add_executable(mpi-wattmeter-bin
   mpi_wattmeter.c
@@ -11,37 +14,48 @@ target_include_directories(mpi-wattmeter-bin
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-add_library(mpi-wattmeter SHARED
+
+
+set(mpi-wattmeter_SOURCES )
+list(APPEND mpi-wattmeter_SOURCES
   mpi.c
-  mpi_f.f90
-  mpi_fortran.c
   mpi-rapl.c
+  )
+
+if(ENABLE_FORTRAN)
+  # mpif.h may define a bunch of unused parameter which would generate lots of warnings
+  list(APPEND mpi-wattmeter_SOURCES
+    mpi_f.f90
+    mpi_fortran.c)
+  
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -Wno-unused-parameter")
+endif()
+
+
+if(ENABLE_NVML)
+    list(APPEND mpi-wattmeter_SOURCES mpi-nvml.c)  
+endif()
+
+add_library(mpi-wattmeter SHARED
+  ${mpi-wattmeter_SOURCES}
   )
 
 target_include_directories(mpi-wattmeter
   PRIVATE
-    ${MPI_C_INCLUDE_PATH}
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${NVML_INCLUDE_DIR}
 )
 
 target_link_libraries(mpi-wattmeter
   PUBLIC
   dl
   PRIVATE
-    ${MPI_Fortran_LIBRARIES}
-    ${MPI_C_LIBRARIES}
+  ${NVML_LIBRARY}
 )
 
 target_compile_options(mpi-wattmeter
   PRIVATE
     -Wall -Wextra -Wpedantic
-    -DUSE_MPI3
-    ${MPI_COMPILE_FLAGS}
-)
-
-set_target_properties(mpi-wattmeter
-  PROPERTIES LINK_FLAGS
-  ${MPI_LINK_FLAGS}
 )
 
 #----------------------------------------------------

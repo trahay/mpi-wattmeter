@@ -23,6 +23,8 @@
 #include <mpi.h>
 struct mpii_info mpii_infos; /* information on the local process */
 
+static int nb_gpus = 0;
+struct nvidia_measurement* gpu_measurements = 0;
 /* pointers to actual MPI functions (C version)  */
 int (*libMPI_Init)(int*, char***);
 int (*libMPI_Init_thread)(int*, char***, int, int*);
@@ -110,6 +112,15 @@ static void gather_measurements() {
     struct rapl_measurement measurements[local_size];
     MPI_Gather(&m, sizeof(struct rapl_measurement), MPI_BYTE,
 	       measurements, sizeof(struct rapl_measurement), MPI_BYTE, 0, local_master_comm);
+
+
+    mpi_nvml_stop(gpu_measurements);
+
+    struct nvidia_measurement nvidia_measurements[local_size];
+    MPI_Gather(gpu_measurements, sizeof(struct nvidia_measurement)*nb_gpus, MPI_BYTE,
+	       nvidia_measurements, sizeof(struct nvidia_measurement)*nb_gpus, MPI_BYTE,
+	       0, local_master_comm);
+
     if(local_rank == 0) {
       if(mpii_infos.settings.print_details) {
 	printf("There are %d measurements:\n", local_size);
@@ -120,7 +131,7 @@ static void gather_measurements() {
 
       printf("\n\nTotal:\n");
       print_rapl_measurements(measurements, local_size);
-
+      print_gpu_measurements(nvidia_measurements, local_size);
     }
   }
 
@@ -268,6 +279,10 @@ void mpii_init(void) {
   unset_ld_preload();
   load_settings();  
   INSTRUMENT_ALL_FUNCTIONS();
+
+  nb_gpus = mpi_nvml_init();
+  gpu_measurements = malloc(nb_gpus * sizeof(struct nvidia_measurement));
+  mpi_nvml_start(gpu_measurements);
 }
 
 void mpii_finish(void) __attribute__((destructor));

@@ -20,6 +20,8 @@
 #define SETTINGS_VERBOSE_DEFAULT 0
 #define SETTINGS_PRINT_DETAILS_DEFAULT 0
 
+//#define ENABLE_NVML @ENABLE_NVML@
+
 struct mpii_settings {
   int verbose;
   int print_details;
