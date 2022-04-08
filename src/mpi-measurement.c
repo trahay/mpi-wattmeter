@@ -1,7 +1,20 @@
 #include "mpii.h"
 #include <inttypes.h>
 
-void print_rapl_measurement(struct rapl_measurement *m, const char* prefix);
+
+static inline double joules_to_watthour(double joules) {
+  return joules/3600;
+}
+
+/* return the number of grams of CO2 emitted */
+static inline double joules_to_co2(double joules) {
+  /* In France electricity cost is around 36 gCO2/kWh
+   * [https://www.rte-france.com/actualites/bilan-electrique-2021] */
+  double kwatt = joules_to_watthour(joules)/1e3;
+  return kwatt * 36;
+}
+
+void print_local_rapl_measurement(struct rapl_measurement *m, const char* prefix);
 void print_rapl_measurements(struct rapl_measurement *m, int nb);
 void print_gpu_measurements(struct nvidia_measurement* m);
 void print_local_gpu_measurement(struct nvidia_measurement* m, int rank);
@@ -59,7 +72,7 @@ void print_measurements() {
 	for(int i=0; i<mpii_infos.local_size; i++) {
 	  char prefix[128];
 	  snprintf(prefix, 128, "%s:%d", get_rank_hostname(i), i);
-	  print_rapl_measurement(&measurements[i], prefix);
+	  print_local_rapl_measurement(&measurements[i], prefix);
 	  print_local_gpu_measurement(&nvidia_measurements[i], i);
 	}
 	printf("\n");
@@ -76,21 +89,23 @@ void print_measurements() {
 void print_single_counter(const char *prefix, const char *source, double value) {
   static int first_time = 1;
   if(first_time) {
-    printf("#%-14s\t%-10s\t%-10s\t%-10s\n",
+    printf("#%-14s\t%-10s\t%-10s\t%-10s\t%-10s\n",
 	   "Node:rank",
 	   "Source",
 	   "joules",
-	   "Watt.hour");
+	   "Watt.hour",
+	   "gCO2");
     first_time = 0;
   }
-  printf("%-15s\t%-10s\t%-10lf\t%-10lf\n",
+  printf("%-15s\t%-10s\t%-10lf\t%-10lf\t%-10lf\n",
 	 prefix,
 	 source,
 	 value,
-	 joules_to_watthour(value));
+	 joules_to_watthour(value),
+	 joules_to_co2(value));
 }
 
-void print_rapl_measurement(struct rapl_measurement *m, const char* prefix) {
+void print_local_rapl_measurement(struct rapl_measurement *m, const char* prefix) {
   for(int i=0;i<NUM_RAPL_DOMAINS;i++) {
     if(m->counter_value[i] > 0 ) {
       print_single_counter(prefix, rapl_domain_names[i], m->counter_value[i]);
@@ -119,7 +134,7 @@ void print_local_gpu_measurement(struct nvidia_measurement *m, int rank) {
 void print_statistics(const char* source, double total, double avg, double min, double max) {
   static int first_time = 1;
   if(first_time) {
-    printf("#%-14s\t%-10s\t%-10s\t%-10s\t%-10s\t%-10s\t%-10s\t%-10s\t%-10s\n",
+    printf("#%-14s\t%-10s\t%-10s\t%-10s\t%-10s\t%-10s\t%-10s\t%-10s\t%-10s\t%-10s\t%-10s\t%-10s\t%-10s\n",
 	   "Source",
 	   "total(j)",
 	   "avg(j)",
@@ -128,10 +143,14 @@ void print_statistics(const char* source, double total, double avg, double min, 
 	   "total(W.h)",
 	   "avg(W.h)",
 	   "min(W.h)",
-	   "max(W.h)");
+	   "max(W.h)",
+	   "total(gCO2)",
+	   "avg(gCO2)",
+	   "min(gCO2)",
+	   "max(gCO2)");
 	  first_time = 0;
   }
-  printf("%-15s\t%-10lf\t%-10lf\t%-10lf\t%-10lf\t%-10lf\t%-10lf\t%-10lf\t%-10lf\n",
+  printf("%-15s\t%-10lf\t%-10lf\t%-10lf\t%-10lf\t%-10lf\t%-10lf\t%-10lf\t%-10lf\t%-10lf\t%-10lf\t%-10lf\t%-10lf\n",
 	 source,
 	 total,
 	 avg,
@@ -140,7 +159,11 @@ void print_statistics(const char* source, double total, double avg, double min, 
 	 joules_to_watthour(total),
 	 joules_to_watthour(avg),
 	 joules_to_watthour(min),
-	 joules_to_watthour(max)
+	 joules_to_watthour(max),
+	 joules_to_co2(total),
+	 joules_to_co2(avg),
+	 joules_to_co2(min),
+	 joules_to_co2(max)
 	 );
 }
 

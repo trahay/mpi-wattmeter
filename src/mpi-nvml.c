@@ -43,9 +43,7 @@ int mpi_nvml_init() {
     }
 
     result = nvmlDeviceGetName(nvidia_gpu[i], device_names[i], NVML_DEVICE_NAME_BUFFER_SIZE);
-    if (result == NVML_SUCCESS) {
-      printf("GPU %u: %s\n", i, device_names[i]);
-    } else {
+    if (result != NVML_SUCCESS) {
       fprintf(stderr, "dwm-status: failed to get GPU 0 name: %s\n", nvmlErrorString(result));
       return -1;
     }
