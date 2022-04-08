@@ -38,7 +38,7 @@ endif ()
 
 if(ENABLE_FORTRAN)
   if ( NOT MPI_Fortran_FOUND)
-  message(ERROR " MPI fortran not found")
+    message(ERROR " MPI fortran not found")
   endif()
 endif()
 
