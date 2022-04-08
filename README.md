@@ -34,12 +34,28 @@ In this example, we run NAS Parallel Benchmark BT kernel:
 
 $ mpirun -np 4 mpi_wattmeter  ./bin/bt.A.4 
 [...]
+============================
+MPI-Wattmeter summary
+============================
+#Node:rank      Source          joules          Watt.hour 
+3a401-01:0      energy-cores    216.070618      0.060020  
+3a401-01:0      energy-pkg      252.904602      0.070251  
+3a401-01:0      energy-ram      13.127563       0.003647  
+3a401-02:1      energy-cores    194.357422      0.053988  
+3a401-02:1      energy-pkg      230.965149      0.064157  
+3a401-02:1      energy-ram      12.479248       0.003466  
+3a401-03:2      energy-cores    216.447571      0.060124  
+3a401-03:2      energy-pkg      253.188782      0.070330  
+3a401-03:2      energy-ram      12.913330       0.003587  
+3a401-04:3      energy-cores    196.919067      0.054700  
+3a401-04:3      energy-pkg      233.507263      0.064863  
+3a401-04:3      energy-ram      12.370789       0.003436  
+
 Total:
-[Total]         energy-cores Energy Consumed (total/avg/min/max): 541.067810/541.067810/541.067810/541.067810 Joules (0.150297/0.150297/0.150297/0.150297 watts.hour)
-[Total]         energy-gpu Energy Consumed (total/avg/min/max): 0.232483/0.232483/0.232483/0.232483 Joules (0.000065/0.000065/0.000065/0.000065 watts.hour)
-[Total]         energy-pkg Energy Consumed (total/avg/min/max): 607.711060/607.711060/607.711060/607.711060 Joules (0.168809/0.168809/0.168809/0.168809 watts.hour)
-[Total]         energy-ram Energy Consumed (total/avg/min/max): 42.524353/42.524353/42.524353/42.524353 Joules (0.011812/0.011812/0.011812/0.011812 watts.hour)
-[Total]         energy-psys Energy Consumed (total/avg/min/max): 936.560242/936.560242/936.560242/936.560242 Joules (0.260156/0.260156/0.260156/0.260156 watts.hour)
+#Source         total(j)        avg(j)          min(j)          max(j)          total(W.h)      avg(W.h)        min(W.h)        max(W.h)  
+energy-cores    823.794678      205.948669      194.357422      216.447571      0.228832        0.057208        0.053988        0.060124  
+energy-pkg      970.565796      242.641449      230.965149      253.188782      0.269602        0.067400        0.064157        0.070330  
+energy-ram      50.890930       12.722733       12.370789       13.127563       0.014136        0.003534        0.003436        0.003647  
 
 ```
 
