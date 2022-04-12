@@ -216,19 +216,26 @@ static void reset_ld_preload() {
 }
 
 static void load_settings() {
-  char* mpii_verbose = getenv("MPII_VERBOSE");
-  if(mpii_verbose) {
-    mpii_infos.settings.verbose = atoi(mpii_verbose);
-  }
-  char* mpii_details = getenv("MPII_PRINT_DETAILS");
-  if(mpii_details) {
-    mpii_infos.settings.print_details = atoi(mpii_details);
-  }
+
+#define GET_INT_OPTION_VALUE(variable, option, default_value) do {	\
+    variable = default_value;						\
+    char* str = getenv(option);						\
+    if(str) {								\
+      variable  = atoi(str);						\
+    }								\
+  } while(0)
+
+  GET_INT_OPTION_VALUE(mpii_infos.settings.verbose, "MPII_VERBOSE", SETTINGS_VERBOSE_DEFAULT);
+  GET_INT_OPTION_VALUE(mpii_infos.settings.print_details, "MPII_PRINT_DETAILS", SETTINGS_PRINT_DETAILS_DEFAULT);
+  GET_INT_OPTION_VALUE(mpii_infos.settings.print_joules, "MPII_PRINT_JOULES", SETTINGS_PRINT_JOULES_DEFAULT);
+  GET_INT_OPTION_VALUE(mpii_infos.settings.print_watthours, "MPII_PRINT_WATTHOURS", SETTINGS_PRINT_WATTHOURS_DEFAULT);
+  GET_INT_OPTION_VALUE(mpii_infos.settings.print_co2, "MPII_PRINT_CO2", SETTINGS_PRINT_CO2_DEFAULT);
+  GET_INT_OPTION_VALUE(mpii_infos.settings.print_watt, "MPII_PRINT_WATT", SETTINGS_PRINT_WATT_DEFAULT);
+
 }
 
 void mpii_init(void) __attribute__((constructor));
 void mpii_init(void) {
-  mpii_infos.settings.verbose=SETTINGS_VERBOSE_DEFAULT;
   unset_ld_preload();
   load_settings();  
   INSTRUMENT_ALL_FUNCTIONS();

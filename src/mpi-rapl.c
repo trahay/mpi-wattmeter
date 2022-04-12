@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #define MAX_CPUS	1024
 #define MAX_PACKAGES	16
@@ -19,6 +20,7 @@ static int package_map[MAX_PACKAGES];
 double scale[NUM_RAPL_DOMAINS];
 int fd[NUM_RAPL_DOMAINS][MAX_PACKAGES];
 char units[NUM_RAPL_DOMAINS][BUFSIZ];
+static struct timespec start_date;
 
 static int perf_event_open(struct perf_event_attr *hw_event_uptr,
                     pid_t pid, int cpu, int group_fd, unsigned long flags) {
@@ -176,7 +178,9 @@ int mpi_rapl_init() {
       }
     }
   }
-  return 0;
+  clock_gettime(CLOCK_MONOTONIC, &start_date);
+
+ return 0;
 }
 
 int mpi_rapl_start() {
@@ -186,6 +190,9 @@ int mpi_rapl_start() {
 int mpi_rapl_stop(struct rapl_measurement *m) {
   long long value;
 
+  struct timespec stop_date;
+  clock_gettime(CLOCK_MONOTONIC, &stop_date);
+  m->period = (stop_date.tv_sec-start_date.tv_sec)+((stop_date.tv_nsec-start_date.tv_nsec)/1e9);
   for(int i=0;i<NUM_RAPL_DOMAINS;i++) {
     m->counter_value[i] = 0;
     for(int j=0;j<total_packages;j++) {

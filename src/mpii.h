@@ -30,12 +30,14 @@ static char rapl_domain_names[NUM_RAPL_DOMAINS][30] MAYBE_UNUSED = {
 struct rapl_measurement {
   /* energy consummed by the domain (in Joule) */
   double counter_value[NUM_RAPL_DOMAINS];
+  double period; // duration of the measurement (in second)
   //  char hostname[MPI_MAX_PROCESSOR_NAME];
 };
 
 struct nvidia_measurement {
   char device_name[32];
   double energy;	/* energy consumed by the GPU (in joule) */
+  double period;  // duration of the measurement (in second)
 };
 
 struct mpii_info {
