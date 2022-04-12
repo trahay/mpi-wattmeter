@@ -185,10 +185,6 @@ static void instrument_functions(struct ezt_instrumented_function* functions) {
 /* maximum number of joules. If more than than , there's probably a bug */
 #define MAX_VALUE 1e30
 
-static inline double joules_to_watthour(double joules) {
-  return joules/3600;
-}
-
 
 void start_measurements();
 void stop_measurements();
