@@ -75,7 +75,7 @@ static int create_communicator() {
   /* Create a communicator with all the "local master" ranks */
   MPI_Comm_split(MPI_COMM_WORLD,
 		 color,
-		 MPI_INFO_NULL,
+		 rank,
 		 &mpii_infos.local_master_comm);
   if(color) {
     MPI_Comm_rank(mpii_infos.local_master_comm, &mpii_infos.local_rank);
