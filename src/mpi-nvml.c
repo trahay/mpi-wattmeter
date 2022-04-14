@@ -3,11 +3,13 @@
 #if HAVE_NVML
 
 #include <nvml.h>
+#include <time.h>
 
 static nvmlDevice_t *nvidia_gpu = NULL;
 static unsigned dev_count=0;
 static char **device_names=NULL;
 static unsigned long long *gpu_energy = NULL;
+static struct timespec start_date;
 
 int mpi_nvml_init() {
   nvmlReturn_t result;
@@ -53,6 +55,7 @@ int mpi_nvml_init() {
 
 /* Start NVML measurement */
 int mpi_nvml_start(struct nvidia_measurement* m) {
+  clock_gettime(CLOCK_MONOTONIC, &start_date);
   for(unsigned i=0; i<dev_count; i++) {
     nvmlReturn_t result = nvmlDeviceGetTotalEnergyConsumption(nvidia_gpu[i], &gpu_energy[i]);
     if (result != NVML_SUCCESS) {
@@ -66,6 +69,10 @@ int mpi_nvml_start(struct nvidia_measurement* m) {
 
 /* Stop NVML measurement */
 int mpi_nvml_stop(struct nvidia_measurement* m) {
+  static struct timespec stop_date;
+  clock_gettime(CLOCK_MONOTONIC, &stop_date);
+  m->period = (stop_date.tv_sec-start_date.tv_sec)+((stop_date.tv_nsec-start_date.tv_nsec)/1e9);
+
   for(unsigned i=0; i<dev_count; i++) {
     unsigned long long energy;
     nvmlReturn_t result = nvmlDeviceGetTotalEnergyConsumption(nvidia_gpu[i], &energy);

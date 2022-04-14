@@ -17,14 +17,24 @@
 #define NODISCARD
 #endif
 
-#define SETTINGS_VERBOSE_DEFAULT 0
-#define SETTINGS_PRINT_DETAILS_DEFAULT 0
+#define SETTINGS_VERBOSE_DEFAULT         0
+#define SETTINGS_PRINT_DETAILS_DEFAULT   0
+
+#define SETTINGS_PRINT_JOULES_DEFAULT    1
+#define SETTINGS_PRINT_WATTHOURS_DEFAULT 0
+#define SETTINGS_PRINT_CO2_DEFAULT       0
+#define SETTINGS_PRINT_WATT_DEFAULT      1
 
 //#define ENABLE_NVML @ENABLE_NVML@
 
 struct mpii_settings {
   int verbose;
   int print_details;
+
+  int print_joules;
+  int print_watthours;
+  int print_co2;
+  int print_watt;
 };
 
 #define STRING_LENGTH 4096
