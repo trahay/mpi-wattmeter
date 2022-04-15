@@ -19,14 +19,33 @@ int mpi_nvml_init() {
     fprintf(stderr, "dwm-status: failed to initialize NVML: %s\n", nvmlErrorString(result));
     return -1;
   }
-  result = nvmlDeviceGetCount(&dev_count);
+  int detected_devices;
+  result = nvmlDeviceGetCount(&detected_devices);
   if (result != NVML_SUCCESS) {
     fprintf(stderr, "dwm-status: failed to get device count: %s\n", nvmlErrorString(result));
     nvmlShutdown();
     return -1;
   }
 
+  dev_count = 0;
+  for(unsigned i=0; i<detected_device; i++) {
+    /* check if the GPU supports GetTotalEnergyConsumption */
+    nvmlDevice_t gpu;
+    result = nvmlDeviceGetHandleByIndex(i, &gpu);
+    if (result != NVML_SUCCESS) {
+      fprintf(stderr, "dwm-status: failed to get GPU %d: %s\n", i, nvmlErrorString(result));
+      continue;
+    }
+    unsigned long long energy;
+    result = nvmlDeviceGetTotalEnergyConsumption(gpu, &energy);
+    if (result != NVML_SUCCESS) {
+      fprintf(stderr, "nvmlDeviceGetTotalEnergyConsumption: failed to get GPU energy consumtion on GPU %d: %s\n", i, nvmlErrorString(result));
+      continue;
+    }
+  }
+
   if (dev_count < 1) {
+    fprintf(stderr, "[MPI-Wattmeter] No supported GPU detected\n");
     nvmlShutdown();
     return -1;
   }
@@ -34,6 +53,7 @@ int mpi_nvml_init() {
   nvidia_gpu = malloc(sizeof(nvmlDevice_t) * dev_count);
   device_names = malloc(sizeof(char*) * dev_count);
   gpu_energy = malloc(sizeof(unsigned long long) * dev_count);
+
   for(unsigned i=0; i<dev_count; i++) {
     device_names[i] = malloc(sizeof(char) * NVML_DEVICE_NAME_BUFFER_SIZE);
 
