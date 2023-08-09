@@ -239,8 +239,7 @@ void start_measurements() {
 
   for(int i=0; i<mpii_infos.nb_plugins; i++) {
     if(mpii_infos.plugins[i]->init(&mpii_infos)) {
-      fprintf(stderr, "Initializing plugin %s failed.\n", mpii_infos.plugins[i]->plugin_name);
-      exit(1);
+      fprintf(stderr, "Warning: Initializing plugin %s failed.\n", mpii_infos.plugins[i]->plugin_name);
     }
   }
 
