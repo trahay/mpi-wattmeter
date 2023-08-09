@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.17)
 
 # Compile this module with mpicc/mpif90
 set(CMAKE_C_COMPILER ${MPI_C_COMPILER})
@@ -44,12 +44,11 @@ target_include_directories(mpi-wattmeter
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-
 target_link_libraries(mpi-wattmeter
   PUBLIC
   dl
   PRIVATE
-   $<$<BOOL:ENABLE_NVML>:CUDA::nvml>
+   $<$<BOOL:${ENABLE_NVML}>:CUDA::nvml>
 )
 
 target_compile_options(mpi-wattmeter
