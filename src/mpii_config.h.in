@@ -38,3 +38,5 @@ struct mpii_settings {
 };
 
 #define STRING_LENGTH 4096
+#define NB_COUNTERS_MAX 1024
+#define NB_PLUGINS_MAX 128

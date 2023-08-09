@@ -27,18 +27,26 @@ static char rapl_domain_names[NUM_RAPL_DOMAINS][30] MAYBE_UNUSED = {
   "energy-psys",
 };
 
-struct rapl_measurement {
-  /* energy consummed by the domain (in Joule) */
-  double counter_value[NUM_RAPL_DOMAINS];
-  double period; // duration of the measurement (in second)
-  //  char hostname[MPI_MAX_PROCESSOR_NAME];
+
+struct measurement_plugin;
+struct mpii_info;
+
+struct measurement {
+  char counter_name[128];
+  struct measurement_plugin *plugin;
+  int device_id;
+  int counter_id;
+  double counter_value;
+  double period;
 };
 
-struct nvidia_measurement {
-  char device_name[32];
-  double energy;	/* energy consumed by the GPU (in joule) */
-  double period;  // duration of the measurement (in second)
+struct measurement_plugin {
+  char plugin_name[STRING_LENGTH];
+  int (*init)(struct mpii_info *mpii_info);
+  int (*start_measurement)(struct mpii_info *mpii_info);
+  int (*stop_measurement)(struct mpii_info *mpii_info);
 };
+
 
 struct mpii_info {
   int rank;
@@ -46,9 +54,11 @@ struct mpii_info {
   char hostname[MPI_MAX_PROCESSOR_NAME];
   char *hostnames;
 
-  int nb_gpus;
-  struct nvidia_measurement* gpu_measurement;
-  struct rapl_measurement rapl_measurement;
+  int nb_counters;
+  struct measurement measurements[NB_COUNTERS_MAX];
+
+  int nb_plugins;
+  struct measurement_plugin *plugins[NB_PLUGINS_MAX];
 
   int mpi_mode;	/* are we running an MPI application ? */
   int is_local_master;		/* set to 1 if the rank is a local master */
@@ -58,6 +68,13 @@ struct mpii_info {
 
   struct mpii_settings settings;
 };
+
+void register_plugin(struct measurement_plugin *plugin);
+void register_measurement(struct mpii_info* mpii_info,
+			  const char *counter_name,
+			  struct measurement_plugin *plugin,
+			  int device_id,
+			  int counter_id);
 
 /* information on the local process */
 extern struct mpii_info mpii_infos;
@@ -192,12 +209,14 @@ void start_measurements();
 void stop_measurements();
 void print_measurements();
  
+#if 0
+
 /* Initialize RAPL */
-int mpi_rapl_init();
-/* Start the RAPL measurement */
-int mpi_rapl_start();
-/* Stop the RAPL measurement */
-int mpi_rapl_stop(struct rapl_measurement *m);
+//int mpi_rapl_init();
+///* Start the RAPL measurement */
+//int mpi_rapl_start();
+///* Stop the RAPL measurement */
+//int mpi_rapl_stop(struct rapl_measurement *m);
 
 /* initialize NVML.
  * Return the number of GPUs
@@ -209,6 +228,7 @@ int mpi_nvml_start(struct nvidia_measurement* m);
 
 /* Stop NVML measurement */
 int mpi_nvml_stop(struct nvidia_measurement* m);
+#endif
 
 static inline char* get_rank_hostname(int rank) {
   return &mpii_infos.hostnames[rank * MPI_MAX_PROCESSOR_NAME];

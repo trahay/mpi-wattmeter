@@ -4,7 +4,7 @@
 #include <mpi.h>
 
 static int N=4000;
-#define NB_STEPS 50
+#define NB_STEPS 5
 
 /* uncomment this line to activate the debug mode */
 //#define DEBUG 1

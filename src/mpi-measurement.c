@@ -20,29 +20,16 @@ static inline double joule_to_co2(double joules) {
   return kwatt * 36;
 }
 
-void print_local_rapl_measurement(struct rapl_measurement *m, const char* prefix);
-void print_rapl_measurements(struct rapl_measurement *m, int nb);
-void print_gpu_measurements(struct nvidia_measurement* m);
-void print_local_gpu_measurement(struct nvidia_measurement* m, int rank);
+static void _print_single_counter(const char *prefix, const char *source, double value, double duration);
+static void _print_local_measurement(struct measurement *m, const char* prefix);
+static void _print_statistics(const char* source, double total, double avg, double min, double max, double duration);
 
-void start_measurements() {
-  mpi_rapl_init();
+static void _init_measurement(struct measurement* m,
+			      const char *counter_name,
+			      struct measurement_plugin *plugin,
+			      int device_id,
+			      int counter_id);
 
-  mpii_infos.nb_gpus = mpi_nvml_init();
-  mpii_infos.gpu_measurement = malloc(mpii_infos.nb_gpus * sizeof(struct nvidia_measurement));
-  mpi_nvml_start(mpii_infos.gpu_measurement);
-
-  mpi_rapl_start();
-}
-
-
-void stop_measurements() {
-
-  if(mpii_infos.is_local_master) {
-    mpi_rapl_stop(&mpii_infos.rapl_measurement);
-    mpi_nvml_stop(mpii_infos.gpu_measurement);
-  }
-}
 
 
 void print_measurements() {
@@ -52,20 +39,23 @@ void print_measurements() {
 
   if(mpii_infos.is_local_master) {
 
-    struct rapl_measurement measurements[mpii_infos.local_size];
-    struct nvidia_measurement nvidia_measurements[mpii_infos.local_size];
+    struct measurement measurements[mpii_infos.local_size][NB_COUNTERS_MAX];
 
     if(mpii_infos.mpi_mode) {
-      MPI_Gather(&mpii_infos.rapl_measurement, sizeof(struct rapl_measurement), MPI_BYTE,
-		 measurements, sizeof(struct rapl_measurement), MPI_BYTE,
+      /* TODO: we don't need to gather NB_COUNTER_MAX. We could gather nb_counters instead */
+      MPI_Gather(&mpii_infos.measurements, sizeof(struct measurement)*NB_COUNTERS_MAX, MPI_BYTE,
+		 measurements, sizeof(struct measurement)*NB_COUNTERS_MAX, MPI_BYTE,
 		 0, mpii_infos.local_master_comm);
 
-      MPI_Gather(mpii_infos.gpu_measurement, sizeof(struct nvidia_measurement)*mpii_infos.nb_gpus, MPI_BYTE,
-		 nvidia_measurements, sizeof(struct nvidia_measurement)*mpii_infos.nb_gpus, MPI_BYTE,
-		 0, mpii_infos.local_master_comm);
+      /* we assume that all nodes have the same counters.
+       * Thus, we change the plugin pointer to refer to the local plugin address
+       */
+      for(int i=0; i<mpii_infos.local_size; i++) {
+	for(int j = 0; j<mpii_infos.nb_counters; j++)
+	  measurements[i][j].plugin = mpii_infos.measurements[j].plugin;
+      }
     } else {
-      memcpy(measurements, &mpii_infos.rapl_measurement, sizeof(struct rapl_measurement));
-      memcpy(nvidia_measurements, mpii_infos.gpu_measurement, sizeof(struct nvidia_measurement));
+      memcpy(measurements, &mpii_infos.measurements, sizeof(struct measurement)*NB_COUNTERS_MAX);
     }
 
 
@@ -78,21 +68,70 @@ void print_measurements() {
 	for(int i=0; i<mpii_infos.local_size; i++) {
 	  char prefix[128];
 	  snprintf(prefix, 128, "%s:%d", get_rank_hostname(i), i);
-	  print_local_rapl_measurement(&measurements[i], prefix);
-	  print_local_gpu_measurement(&nvidia_measurements[i], i);
+	  for(int j=0; j<mpii_infos.nb_counters; j++) {
+	    _print_local_measurement(&measurements[i][j], prefix);
+	  }
 	}
 	printf("\n");
       }
 
       printf("Total:\n");
-      print_rapl_measurements(measurements, mpii_infos.local_size);
-      print_gpu_measurements(nvidia_measurements);
+      for(int i=0; i<mpii_infos.nb_counters; i++) {
+     	struct measurement min;
+	struct measurement max;
+	struct measurement total;
+	struct measurement avg;
+#define _INIT_MEASUREMENT(_m)						\
+	_init_measurement(_m,						\
+			  mpii_infos.measurements[i].counter_name,	\
+			  mpii_infos.measurements[i].plugin,		\
+			  mpii_infos.measurements[i].device_id,		\
+			  mpii_infos.measurements[i].counter_id)
+	_INIT_MEASUREMENT(&min);
+	_INIT_MEASUREMENT(&max);
+	_INIT_MEASUREMENT(&total);
+	_INIT_MEASUREMENT(&avg);
+      
+	int nb_val = 0;      
+	for(int rank=0; rank<mpii_infos.local_size; rank++) {
+	  double counter_value = measurements[rank][i].counter_value;
+	  double period = measurements[rank][i].period;
+
+	  if(counter_value > 0) {
+	    nb_val++;
+	  
+	    if(counter_value < min.counter_value || min.counter_value == 0)
+	      min.counter_value = counter_value;
+
+	    if(period < min.period || min.period == 0)
+	      min.period = period;
+
+	    if(counter_value > max.counter_value || max.counter_value == 0)
+	      max.counter_value = counter_value;
+
+	    if(period > max.period || max.period == 0)
+	      max.period = period;
+
+	    total.counter_value += counter_value;
+	  }
+	  total.period += period;
+	}
+	if(nb_val > 0 ) {
+	  avg.counter_value =total.counter_value / nb_val;
+	  avg.period = total.period / mpii_infos.local_size;
+	  _print_statistics(avg.counter_name,
+			   total.counter_value,
+			   avg.counter_value,
+			   min.counter_value,
+			   max.counter_value,
+			   avg.period);
+	}
+      }
     }
   }
 }
 
-
-void print_single_counter(const char *prefix, const char *source, double value, double duration) {
+static void _print_single_counter(const char *prefix, const char *source, double value, double duration) {
   static int first_time = 1;
   if(first_time) {
     printf("#%-14s\t%-10s",
@@ -122,33 +161,15 @@ void print_single_counter(const char *prefix, const char *source, double value, 
   printf("\n");
 }
 
-void print_local_rapl_measurement(struct rapl_measurement *m, const char* prefix) {
-  for(int i=0;i<NUM_RAPL_DOMAINS;i++) {
-    if(m->counter_value[i] > 0 ) {
-      print_single_counter(prefix, rapl_domain_names[i], m->counter_value[i], m->period);
-      if(m->counter_value[i] > MAX_VALUE) {
-	printf("Wow, that's a lot of joules ! (%"PRIu64")\n", (uint64_t)m->counter_value[i]);
-	abort();
-      }
-    }
+static void _print_local_measurement(struct measurement *m, const char* prefix) {
+  _print_single_counter(prefix, m->counter_name, m->counter_value, m->period);
+  if(m->counter_value > MAX_VALUE) {
+    printf("Wow, that's a lot of joules ! (%"PRIu64")\n", (uint64_t)m->counter_value);
+    abort();
   }
 }
 
-void print_local_gpu_measurement(struct nvidia_measurement *m, int rank) {
-
-  for(int i=0;i<mpii_infos.nb_gpus;i++) {
-
-    char prefix[32];
-    snprintf(prefix, 32, "%s:GPU#%d", get_rank_hostname(rank), i);
-    print_single_counter(prefix, "GPU", m[i].energy, m->period);
-    if(m[i].energy > MAX_VALUE) {
-      printf("Wow, that's a lot of joules ! (%"PRIu64")\n", (uint64_t)m[i].energy);
-      abort();
-    }
-  }
-}
-
-void print_statistics(const char* source, double total, double avg, double min, double max, double duration) {
+static void _print_statistics(const char* source, double total, double avg, double min, double max, double duration) {
   static int first_time = 1;
   if(first_time) {
     printf("#%-14s", "Source");
@@ -213,106 +234,83 @@ void print_statistics(const char* source, double total, double avg, double min, 
   printf("\n");
 }
 
-static void init_rapl_measurement(struct rapl_measurement *m) {
-  for(int i=0;i<NUM_RAPL_DOMAINS;i++) {
-    m->counter_value[i] = 0;
+
+void start_measurements() {
+
+  for(int i=0; i<mpii_infos.nb_plugins; i++) {
+    if(mpii_infos.plugins[i]->init(&mpii_infos)) {
+      fprintf(stderr, "Initializing plugin %s failed.\n", mpii_infos.plugins[i]->plugin_name);
+      exit(1);
+    }
   }
+
+  for(int i=0; i<mpii_infos.nb_plugins; i++) {
+    if(mpii_infos.plugins[i]->start_measurement(&mpii_infos)) {
+      fprintf(stderr, "[%s] start_measurement failed.\n", mpii_infos.plugins[i]->plugin_name);
+      exit(1);
+    }
+  }
+}
+
+
+void stop_measurements() {
+  if(mpii_infos.is_local_master) {
+
+    for(int i=0; i<mpii_infos.nb_plugins; i++) {
+      if(mpii_infos.plugins[i]->stop_measurement(&mpii_infos)) {
+	fprintf(stderr, "[%s] stop_measurement failed.\n", mpii_infos.plugins[i]->plugin_name);
+	exit(1);
+      }      
+    }
+
+#if 0
+    for(int i=0; i<mpii_infos.nb_counters; i++) {
+      printf("%d - %s (dev %d, cpt %d): %lf\n", i, mpii_infos.measurements[i].counter_name,
+	     mpii_infos.measurements[i].device_id,  mpii_infos.measurements[i].counter_id,
+	     mpii_infos.measurements[i].counter_value);
+    }
+#endif
+  }
+}
+
+
+static void _init_measurement(struct measurement* m,
+			     const char *counter_name,
+			     struct measurement_plugin *plugin,
+			     int device_id,
+			     int counter_id) {
+  strncpy(m->counter_name, counter_name, 128);
+  m->plugin = plugin;
+  m->device_id = device_id;
+  m->counter_id = counter_id;
+  m->counter_value= 0;
   m->period = 0;
 }
 
-void print_rapl_measurements(struct rapl_measurement *m, int nb) {
-  struct rapl_measurement min;
-  struct rapl_measurement max;
-  struct rapl_measurement total;
-  struct rapl_measurement avg;
-  init_rapl_measurement(&min);
-  init_rapl_measurement(&max);
-  init_rapl_measurement(&total);
-  init_rapl_measurement(&avg);
-
-  for(int j=0;j<NUM_RAPL_DOMAINS;j++) {
-    int nb_val = 0;
-    for(int i=0; i<nb; i++) {
-      if(m[i].counter_value[j] > 0 ) {
-	nb_val++;
-	if(m[i].counter_value[j] < min.counter_value[j] || min.counter_value[j] == 0)
-	  min.counter_value[j] = m[i].counter_value[j];
-
-	if(m[i].period < min.period || min.period == 0)
-	  min.period = m[i].period;
-
-	if(m[i].counter_value[j] > max.counter_value[j] || max.counter_value[j] == 0)
-	  max.counter_value[j] = m[i].counter_value[j];
-
-	if(m[i].period > max.period || max.period == 0)
-	  max.period = m[i].period;
-
-	total.counter_value[j] += m[i].counter_value[j];
-      }
-
-      if(j==0)
-	total.period += m[i].period;
-    }
-    if(nb_val > 0 ) {
-      avg.counter_value[j]=total.counter_value[j]/nb_val;
-      avg.period=total.period/nb;
-      print_statistics(rapl_domain_names[j],
-		       total.counter_value[j],
-		       avg.counter_value[j],
-		       min.counter_value[j],
-		       max.counter_value[j],
-		       avg.period);
-    }
+void register_measurement(struct mpii_info* mpii_info,
+			  const char *counter_name,
+			  struct measurement_plugin *plugin,
+			  int device_id,
+			  int counter_id) {
+  if(mpii_infos.nb_counters > NB_COUNTERS_MAX) {
+    fprintf(stderr, "Error: Too many counters (%d)\n", mpii_infos.nb_counters);
+    exit(1);
   }
+
+  int i = mpii_infos.nb_counters++;
+  _init_measurement(&mpii_info->measurements[i],
+		    counter_name,
+		    plugin,
+		    device_id,
+		    counter_id);
 }
 
-static void init_nvidia_measurement(struct nvidia_measurement *m) {
-  m->energy = 0;
-  m->device_name[0]='\0';
-  m->period = 0;
-}
-
-
-void print_gpu_measurements(struct nvidia_measurement* m) {
-  struct nvidia_measurement min;
-  struct nvidia_measurement max;
-  struct nvidia_measurement total;
-  struct nvidia_measurement avg;
-  init_nvidia_measurement(&min);
-  init_nvidia_measurement(&max);
-  init_nvidia_measurement(&total);
-  init_nvidia_measurement(&avg);
-  int total_gpus = 0;
-  for(int i=0; i<mpii_infos.nb_gpus; i++) {
-    for(int rank = 0; rank<mpii_infos.local_size; rank++) {
-      struct nvidia_measurement *cur = &m[(rank*mpii_infos.nb_gpus) + i];
-      if(min.energy < cur->energy || min.energy == 0)
-	min.energy = cur->energy;
-
-      if(min.period < cur->period || min.period == 0)
-	min.period = cur->period;
-
-      if(max.energy > cur->energy || max.energy == 0)
-	max.energy = cur->energy;
-
-      if(max.period > cur->period || max.period == 0)
-	max.period = cur->period;
-
-      total.energy += cur->energy;
-      if(i == 0)
-	total.period += cur->period;
-      total_gpus++;
-    }
+void register_plugin(struct measurement_plugin *plugin) {
+  if(mpii_infos.nb_plugins > NB_PLUGINS_MAX) {
+    fprintf(stderr, "Error: Too many plugins (%d)\n", mpii_infos.nb_plugins);
+    exit(1);
   }
 
-  if(total_gpus > 0 ) {
-    avg.energy = total.energy / total_gpus;
-    avg.period = total.period / mpii_infos.local_size;
-    print_statistics("GPUs",
-		     total.energy,
-		     avg.energy,
-		     min.energy,
-		     max.energy,
-		     avg.period);
-  }
+  int plugin_index = mpii_infos.nb_plugins++;
+  mpii_infos.plugins[plugin_index] = plugin;
 }
