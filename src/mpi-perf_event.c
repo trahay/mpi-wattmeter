@@ -11,6 +11,9 @@
 #define MAX_CPUS	1024
 #define MAX_PACKAGES	16
 
+struct measurement_plugin perf_event_plugin;
+
+
 
 static int total_cores=0; // number of cores
 static int total_packages=0; // number of packages (eg. sockets)
@@ -81,8 +84,6 @@ int check_paranoid(void) {
 
   return paranoid_value;
 }
-
-struct measurement_plugin perf_event_plugin;
 
 int mpi_perf_event_init(struct mpii_info *mpii_info) {
   if( detect_packages() < 0 ) {
