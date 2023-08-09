@@ -46,14 +46,14 @@ add_library(mpi-wattmeter SHARED
 target_include_directories(mpi-wattmeter
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${NVML_INCLUDE_DIR}
+    CUDA::nvml
 )
 
 target_link_libraries(mpi-wattmeter
   PUBLIC
   dl
   PRIVATE
-  ${NVML_LIBRARY}
+  CUDA::nvml
 )
 
 target_compile_options(mpi-wattmeter

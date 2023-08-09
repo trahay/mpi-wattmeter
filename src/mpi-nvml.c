@@ -7,11 +7,30 @@
 
 struct measurement_plugin nvml_plugin;
 
-static nvmlDevice_t *nvidia_gpu = NULL;
-static unsigned dev_count=0;
-static char **device_names=NULL;
-static unsigned long long *gpu_energy = NULL;
+struct nvml_counter {
+  char device_name[STRING_LENGTH];
+  nvmlDevice_t device;
+  unsigned long long gpu_energy;
+
+  int device_id;
+  int subdevice_id;
+};
+
+static unsigned nb_counters;
+static struct nvml_counter *counters = NULL;
+
 static struct timespec start_date;
+
+
+static struct nvml_counter * _find_counter(int device_id, int subdevice_id) {
+  for(unsigned i = 0; i<nb_counters; i++) {
+    if(counters[i].device_id == device_id &&
+       counters[i].subdevice_id == subdevice_id)
+      return &counters[i];
+  }
+  return NULL;
+}
+  
 
 int mpi_nvml_init(struct mpii_info *mpii_info) {
   nvmlReturn_t result;
@@ -21,7 +40,7 @@ int mpi_nvml_init(struct mpii_info *mpii_info) {
     fprintf(stderr, "dwm-status: failed to initialize NVML: %s\n", nvmlErrorString(result));
     return -1;
   }
-  int detected_devices;
+  unsigned detected_devices;
   result = nvmlDeviceGetCount(&detected_devices);
   if (result != NVML_SUCCESS) {
     fprintf(stderr, "dwm-status: failed to get device count: %s\n", nvmlErrorString(result));
@@ -29,8 +48,8 @@ int mpi_nvml_init(struct mpii_info *mpii_info) {
     return -1;
   }
 
-  dev_count = 0;
-  for(unsigned i=0; i<detected_device; i++) {
+  nb_counters = 0;
+  for(unsigned i=0; i<detected_devices; i++) {
     /* check if the GPU supports GetTotalEnergyConsumption */
     nvmlDevice_t gpu;
     result = nvmlDeviceGetHandleByIndex(i, &gpu);
@@ -44,39 +63,43 @@ int mpi_nvml_init(struct mpii_info *mpii_info) {
       fprintf(stderr, "nvmlDeviceGetTotalEnergyConsumption: failed to get GPU energy consumtion on GPU %d: %s\n", i, nvmlErrorString(result));
       continue;
     }
+
+
+    int counter_index = nb_counters++;
+    counters = realloc(counters, sizeof(struct nvml_counter)*nb_counters);
+    counters[counter_index].device_id = i;
+    counters[counter_index].subdevice_id = -1;
+    
+    result = nvmlDeviceGetHandleByIndex(i, &counters[counter_index].device);
+    if (result != NVML_SUCCESS) {
+      fprintf(stderr, "nvmlDeviceGetHandleByIndex failed for GPU %d: %s\n", i, nvmlErrorString(result));
+      nvmlShutdown();
+      return -1;
+    }
+
+    result = nvmlDeviceGetName(counters[counter_index].device, counters[counter_index].device_name,
+			       STRING_LENGTH);
+    if (result != NVML_SUCCESS) {
+      fprintf(stderr, "nvmlDeviceGetName failed for GPU %d: %s\n", i, nvmlErrorString(result));
+      return -1;
+    }
+
+
+    /* register the counter */
+    register_measurement(mpii_info,
+			 counters[counter_index].device_name,
+			 &nvml_plugin,
+			 counters[counter_index].device_id,
+			 -1);	/* TODO: is it possible to collect several energy consumption sources ? */
   }
 
-  if (dev_count < 1) {
+  if (nb_counters < 1) {
     fprintf(stderr, "[MPI-Wattmeter] No supported GPU detected\n");
     nvmlShutdown();
     return -1;
   }
 
-  for(unsigned i=0; i<dev_count; i++) {
-    char* device_name = alloca(sizeof(char) * NVML_DEVICE_NAME_BUFFER_SIZE);
-    int device_id;
-    result = nvmlDeviceGetHandleByIndex(i, &device_id);
-    if (result != NVML_SUCCESS) {
-      fprintf(stderr, "dwm-status: failed to get GPU 0: %s\n", nvmlErrorString(result));
-      nvmlShutdown();
-      return -1;
-    }
-
-    result = nvmlDeviceGetName(device_id, device_name, NVML_DEVICE_NAME_BUFFER_SIZE);
-    if (result != NVML_SUCCESS) {
-      fprintf(stderr, "dwm-status: failed to get GPU 0 name: %s\n", nvmlErrorString(result));
-      return -1;
-    }
-
-    /* register the counter */
-    register_measurement(mpii_info,
-			 device_name,
-			 &nvml_plugin,
-			 device_id,
-			 0);	/* TODO: is it possible to collect several energy consumption sources ? */
-
-  }
-  return dev_count;
+  return 0;
 }
 
 /* Start NVML measurement */
@@ -86,36 +109,45 @@ int mpi_nvml_start(struct mpii_info* mpii_info) {
 
   for(int i=0; i<mpii_info->nb_counters; i++) {
     struct measurement *m = &mpii_info->measurements[i];
-    if(m->plugin == &perf_event_plugin) {
+    if(m->plugin == &nvml_plugin) {
 
-      nvmlReturn_t result = nvmlDeviceGetTotalEnergyConsumption(m->device_id, &m->counter_value);
-      if (result != NVML_SUCCESS) {
-	fprintf(stderr, "nvmlDeviceGetTotalEnergyConsumption: failed to get GPU energy consumtion: %s\n", nvmlErrorString(result));
-	return -1;
+      struct nvml_counter * c = _find_counter(m->device_id, m->counter_id);
+      if(c) {
+	nvmlReturn_t result = nvmlDeviceGetTotalEnergyConsumption(c->device, &c->gpu_energy);
+	if (result != NVML_SUCCESS) {
+	  fprintf(stderr, "nvmlDeviceGetTotalEnergyConsumption: failed to get GPU energy consumtion: %s\n", nvmlErrorString(result));
+	  return -1;
+	}
       }
     }
   }
   return 0;  
 }
 
+
 /* Stop NVML measurement */
 int mpi_nvml_stop(struct mpii_info* mpii_info) {
-  long long value;
   static struct timespec stop_date;
   clock_gettime(CLOCK_MONOTONIC, &stop_date);
 
   for(int i=0; i<mpii_info->nb_counters; i++) {
     struct measurement *m = &mpii_info->measurements[i];
-    if(m->plugin == &perf_event_plugin) {
-      m->period = (stop_date.tv_sec-start_date.tv_sec)+((stop_date.tv_nsec-start_date.tv_nsec)/1e9);
+    if(m->plugin == &nvml_plugin) {
+      struct nvml_counter * c = _find_counter(m->device_id, m->counter_id);
 
-      unsigned long long energy;
-      nvmlReturn_t result = nvmlDeviceGetTotalEnergyConsumption(m->device_id, &energy);
-      if (result != NVML_SUCCESS) {
-	fprintf(stderr, "nvmlDeviceGetTotalEnergyConsumption: failed to get GPU energy consumtion: %s\n", nvmlErrorString(result));
-	return -1;
+      if(c) {
+	m->period = (stop_date.tv_sec-start_date.tv_sec)+((stop_date.tv_nsec-start_date.tv_nsec)/1e9);
+
+	unsigned long long energy;
+	nvmlReturn_t result = nvmlDeviceGetTotalEnergyConsumption(c->device, &energy);
+	if (result != NVML_SUCCESS) {
+	  fprintf(stderr, "nvmlDeviceGetTotalEnergyConsumption: failed to get GPU energy consumtion: %s\n", nvmlErrorString(result));
+	  return -1;
+	}
+	m->counter_value = (energy - c->gpu_energy)/1e3;
+	c->gpu_energy = energy;
       }
-      m->counter_value = (energy - m->counter_value)/1e3;
+    }
   }
   return 0;  
 }

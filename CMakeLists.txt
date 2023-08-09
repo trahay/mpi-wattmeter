@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.1)
+cmake_minimum_required (VERSION 3.17)
 
 project (MPI_WATTMETER
     LANGUAGES C
@@ -43,7 +43,7 @@ if(ENABLE_FORTRAN)
 endif()
 
 if(ENABLE_NVML)
-  find_package (NVML)
+  find_package (CUDAToolkit)
   add_definitions("-DHAVE_NVML=1")
 endif()
 
