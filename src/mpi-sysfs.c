@@ -110,6 +110,8 @@ int register_counter(struct mpii_info *mpii_info, int device_id, int subdevice_i
   counters[counter_id].subdevice_id = subdevice_id;
   _read_counter(nb_counters-1);
 
+  MPII_PRINTF(debug_level_normal, "[MPI-Wattmeter::perf_event] Found counter %s.\n", counter_name);
+
   register_measurement(mpii_info,
 		       counter_name,
 		       &sysfs_plugin,
@@ -119,6 +121,7 @@ int register_counter(struct mpii_info *mpii_info, int device_id, int subdevice_i
 }
 
 int mpi_sysfs_init(struct mpii_info *mpii_info) {
+  MPII_PRINTF(debug_level_verbose, "[MPI-Wattmeter::sysfs] Initializing plugin.\n");
   nb_counters = 0;
   for(int i=0; ; i++) {
     if(register_counter(mpii_info, i, -1) == 0)
@@ -135,11 +138,12 @@ int mpi_sysfs_init(struct mpii_info *mpii_info) {
 
     char name_filename[STRING_LENGTH];
     snprintf(name_filename, STRING_LENGTH, name_base, 0, "name");
-    fprintf(stderr, "Sysfs: Could not find any usable counter. Make sure %s is readable\n", name_filename);
+    MPII_PRINTF(debug_level_normal, "[MPI-Wattmeter::sysfs] Could not find any usable counter. Make sure %s is readable\n", name_filename);
     return -1;
   }
   clock_gettime(CLOCK_MONOTONIC, &start_date);
 
+  MPII_PRINTF(debug_level_normal, "[MPI-Wattmeter::sysfs] Found %d counters.\n", nb_counters);
   return 0;
 }
 

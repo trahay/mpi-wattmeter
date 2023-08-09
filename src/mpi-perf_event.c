@@ -86,15 +86,18 @@ int check_paranoid(void) {
 }
 
 int mpi_perf_event_init(struct mpii_info *mpii_info) {
+  MPII_PRINTF(debug_level_verbose, "[MPI-Wattmeter::perf_event] Initializing plugin.\n");
+
   if( detect_packages() < 0 ) {
-    printf("detect packge failed\n");
+    MPII_PRINTF(debug_level_verbose, "[MPI-Wattmeter::perf_event] detect package failed.\n");
     return -1;
   }
   if( check_paranoid() == 500) {
-    printf("Check paranoid failed\n");
+    MPII_PRINTF(debug_level_verbose, "[MPI-Wattmeter::perf_event] Check paranoid failed\n");
     return -1;
   }
 
+  int nb_perf_event_counters = 0;
   FILE *fff;
   int type;
   unsigned int config[NUM_RAPL_DOMAINS];
@@ -121,7 +124,9 @@ int mpi_perf_event_init(struct mpii_info *mpii_info) {
     fff=fopen(filename,"r");
 
     if (fff!=NULL) {
-      printf("[%d/%d] %s is available\n", i, NUM_RAPL_DOMAINS, rapl_domain_names[i]);
+      MPII_PRINTF(debug_level_verbose, "[MPI-Wattmeter::perf_event] %s (domain %d/%d) is available.\n",
+		  rapl_domain_names[i], i, NUM_RAPL_DOMAINS);
+
       fscanf(fff,"event=%x",&config[i]);
       fclose(fff);
     } else {
@@ -180,9 +185,14 @@ int mpi_perf_event_init(struct mpii_info *mpii_info) {
 	  }
 	}
 
+	char counter_name[STRING_LENGTH];
+	snprintf(counter_name, STRING_LENGTH, "PKG#%d:%s", j, rapl_domain_names[i]);
+	MPII_PRINTF(debug_level_normal, "[MPI-Wattmeter::perf_event] Found counter %s.\n", counter_name);
+	nb_perf_event_counters++;
+
 	/* register the counter */
 	register_measurement(mpii_info,
-			     rapl_domain_names[i],
+			     counter_name,
 			     &perf_event_plugin,
 			     j,
 			     i);
@@ -190,6 +200,7 @@ int mpi_perf_event_init(struct mpii_info *mpii_info) {
     }
   }
   clock_gettime(CLOCK_MONOTONIC, &start_date);
+  MPII_PRINTF(debug_level_normal, "[MPI-Wattmeter::perf_event] Found %d counters.\n", nb_perf_event_counters);
 
  return 0;
 }

@@ -34,16 +34,17 @@ static struct nvml_counter * _find_counter(int device_id, int subdevice_id) {
 
 int mpi_nvml_init(struct mpii_info *mpii_info) {
   nvmlReturn_t result;
+  MPII_PRINTF(debug_level_verbose, "[MPI-Wattmeter::NVML] Initializing plugin.\n");
 
   result = nvmlInit();
   if (result != NVML_SUCCESS) {
-    fprintf(stderr, "dwm-status: failed to initialize NVML: %s\n", nvmlErrorString(result));
+    fprintf(stderr, "nvmlInit failed: %s\n", nvmlErrorString(result));
     return -1;
   }
   unsigned detected_devices;
   result = nvmlDeviceGetCount(&detected_devices);
   if (result != NVML_SUCCESS) {
-    fprintf(stderr, "dwm-status: failed to get device count: %s\n", nvmlErrorString(result));
+    fprintf(stderr, "nvmlDeviceGetCount failed: %s\n", nvmlErrorString(result));
     nvmlShutdown();
     return -1;
   }
@@ -54,7 +55,7 @@ int mpi_nvml_init(struct mpii_info *mpii_info) {
     nvmlDevice_t gpu;
     result = nvmlDeviceGetHandleByIndex(i, &gpu);
     if (result != NVML_SUCCESS) {
-      fprintf(stderr, "dwm-status: failed to get GPU %d: %s\n", i, nvmlErrorString(result));
+      fprintf(stderr, "nvmlDeviceGetHandleByIndex failed for GPU %d: %s\n", i, nvmlErrorString(result));
       continue;
     }
     unsigned long long energy;
@@ -84,6 +85,7 @@ int mpi_nvml_init(struct mpii_info *mpii_info) {
       return -1;
     }
 
+    MPII_PRINTF(debug_level_normal, "[MPI-Wattmeter::NVML] Found counter %s.\n", counters[counter_index].device_name);
 
     /* register the counter */
     register_measurement(mpii_info,
@@ -94,10 +96,12 @@ int mpi_nvml_init(struct mpii_info *mpii_info) {
   }
 
   if (nb_counters < 1) {
-    fprintf(stderr, "[MPI-Wattmeter] No supported GPU detected\n");
+    MPII_PRINTF(debug_level_normal, "[MPI-Wattmeter::NVML] No supported GPU detected.\n");
     nvmlShutdown();
     return -1;
   }
+
+  MPII_PRINTF(debug_level_normal, "[MPI-Wattmeter::NVML] Found %d counters.\n", nb_counters);
 
   return 0;
 }

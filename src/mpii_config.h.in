@@ -17,7 +17,7 @@
 #define NODISCARD
 #endif
 
-#define SETTINGS_VERBOSE_DEFAULT         0
+#define SETTINGS_VERBOSE_DEFAULT         debug_level_normal
 #define SETTINGS_PRINT_DETAILS_DEFAULT   0
 
 #define SETTINGS_PRINT_JOULES_DEFAULT    1
@@ -26,6 +26,12 @@
 #define SETTINGS_PRINT_WATT_DEFAULT      1
 
 //#define ENABLE_NVML @ENABLE_NVML@
+enum devug_level {
+  debug_level_quiet = 0,
+  debug_level_normal = 1,
+  debug_level_verbose = 2,
+  debug_level_extra_verbose = 2,
+};
 
 struct mpii_settings {
   int verbose;

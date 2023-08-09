@@ -80,8 +80,8 @@ void register_measurement(struct mpii_info* mpii_info,
 extern struct mpii_info mpii_infos;
 
 #if 1
-#define FUNCTION_ENTRY_(fname) MPII_PRINTF(2, "[%d/%d]\tEntering %s\n", mpii_infos.rank, mpii_infos.size, fname);
-#define FUNCTION_EXIT_(fname)  MPII_PRINTF(2, "[%d/%d]\tLeaving %s\n", mpii_infos.rank, mpii_infos.size, fname);
+#define FUNCTION_ENTRY_(fname) MPII_PRINTF(debug_level_extra_verbose, "[%d/%d]\tEntering %s\n", mpii_infos.rank, mpii_infos.size, fname);
+#define FUNCTION_EXIT_(fname)  MPII_PRINTF(debug_level_extra_verbose, "[%d/%d]\tLeaving %s\n", mpii_infos.rank, mpii_infos.size, fname);
 #else
 #define FUNCTION_ENTRY_(fname) (void)0
 #define FUNCTION_EXIT_(fname)  (void)0
@@ -149,7 +149,7 @@ static void instrument_function(struct ezt_instrumented_function* f) {
   recursion_shield++;
   if(recursion_shield == 1) {
     if(*(void**)f->callback == NULL) {
-      MPII_PRINTF(1, "Instrumenting %s using dlsym\n", f->function_name);
+      MPII_PRINTF(debug_level_verbose, "Instrumenting %s using dlsym\n", f->function_name);
       /* binary instrumentation did not find the symbol. */
       void* ptr = dlsym(RTLD_NEXT, f->function_name);
       if(ptr) {

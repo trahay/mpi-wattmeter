@@ -19,6 +19,7 @@ const char * argp_program_version="MPII dev";
 static struct argp_option options[] = {
 	{0, 0, 0, 0, "Output options:"},
 	{"verbose", 'v', 0, 0, "Produce verbose output" },
+	{"quiet", 'q', 0, 0, "Quiet mode" },
 	{"details", 'd', 0, 0, "Print detailed measurements (default: OFF)" },
 	{"joule", 'j', "yes|no", OPTION_ARG_OPTIONAL, "Print measurements in Joules (default: yes)" },
 	{"watthour", 'W', "yes|no", OPTION_ARG_OPTIONAL, "Print measurements in Watt.hour (default: no)" },
@@ -35,7 +36,10 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 
   switch(key) {
   case 'v':
-    settings->verbose = 1;
+    settings->verbose = debug_level_verbose;
+    break;
+  case 'q':
+    settings->verbose = debug_level_quiet;
     break;
   case 'd':
     settings->print_details = 1;
