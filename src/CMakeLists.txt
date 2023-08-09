@@ -21,6 +21,7 @@ list(APPEND mpi-wattmeter_SOURCES
   mpi.c
   mpi-measurement.c
   mpi-perf_event.c
+  mpi-sysfs.c
   mpi-nvml.c  )
 
 if(ENABLE_FORTRAN)
