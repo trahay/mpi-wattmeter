@@ -20,7 +20,7 @@ set(mpi-wattmeter_SOURCES )
 list(APPEND mpi-wattmeter_SOURCES
   mpi.c
   mpi-measurement.c
-  mpi-rapl.c
+  mpi-perf_event.c
   mpi-nvml.c  )
 
 if(ENABLE_FORTRAN)
