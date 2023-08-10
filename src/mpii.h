@@ -99,6 +99,12 @@ extern struct mpii_info mpii_infos;
       fprintf(stderr, __VA_ARGS__);               \
   }
 
+#define MPII_WARN(...)            \
+  {                                               \
+    if (mpii_infos.settings.verbose >= debug_level_normal) \
+      fprintf(stderr, __VA_ARGS__);               \
+  }
+
 #define FUNCTION_ENTRY FUNCTION_ENTRY_(__func__);
 #define FUNCTION_EXIT  FUNCTION_EXIT_(__func__);
 

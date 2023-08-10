@@ -78,4 +78,10 @@ if(ENABLE_SYSFS)
   install(TARGETS mpi-wattmeter-sysfs LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
+if(ENABLE_MSR)
+  add_library(mpi-wattmeter-msr SHARED plugin-msr.c)
+  target_link_libraries(mpi-wattmeter-msr PRIVATE mpi-wattmeter-core) 
+  install(TARGETS mpi-wattmeter-msr LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+endif()
+
 #----------------------------------------------------

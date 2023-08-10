@@ -31,6 +31,7 @@ enable_language(Fortran)
 option(ENABLE_NVML "Install the NVML  plugin" ON)
 option(ENABLE_PERF_EVENT "Install the perf_event plugin" ON)
 option(ENABLE_SYSFS "Install the sysfs plugin" ON)
+option(ENABLE_MSR "Install the msr plugin" ON)
 
 option(ENABLE_FORTRAN "Enable FORTRAN" ON)
 

@@ -86,6 +86,11 @@ int check_paranoid(void) {
 }
 
 int mpi_perf_event_init(struct mpii_info *mpii_info) {
+
+  static int initialized = 0;
+  if(initialized++)
+    return 0;
+
   MPII_PRINTF(debug_level_verbose, "[MPI-Wattmeter::perf_event] Initializing plugin.\n");
 
   if( detect_packages() < 0 ) {
@@ -236,8 +241,8 @@ int mpi_perf_event_stop(struct mpii_info* mpii_info) {
 		package, counter_id);
       }
       read(fd[counter_id][package],&value,8);
-	close(fd[counter_id][package]);
-	m->counter_value += (double)value*scale[counter_id];
+      close(fd[counter_id][package]);
+      m->counter_value += (double)value*scale[counter_id];
 
 	if(value > MAX_VALUE) {
 	  printf("Wow, that's a lot of joules ! (%lld)\n", value);
