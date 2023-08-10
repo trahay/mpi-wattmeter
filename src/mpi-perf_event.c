@@ -255,7 +255,7 @@ void _perf_event_init(void){
   perf_event_plugin.init = mpi_perf_event_init;
   perf_event_plugin.start_measurement = mpi_perf_event_start;
   perf_event_plugin.stop_measurement = mpi_perf_event_stop;
-  strcpy(perf_event_plugin.plugin_name, "Perf_event");
+  strcpy(perf_event_plugin.plugin_name, "perf_event");
   
   register_plugin(&perf_event_plugin);
 }

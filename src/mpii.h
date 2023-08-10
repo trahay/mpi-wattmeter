@@ -42,6 +42,11 @@ struct measurement {
 
 struct measurement_plugin {
   char plugin_name[STRING_LENGTH];
+
+//  char path[STRING_LENGTH];
+//  char description[STRING_LENGTH];
+//  void* handle;
+
   int (*init)(struct mpii_info *mpii_info);
   int (*start_measurement)(struct mpii_info *mpii_info);
   int (*stop_measurement)(struct mpii_info *mpii_info);
@@ -69,7 +74,11 @@ struct mpii_info {
   struct mpii_settings settings;
 };
 
+/* Load all the available plugins. Each plugin will register */
+void load_plugins();
+/* Try to register a plugin */
 void register_plugin(struct measurement_plugin *plugin);
+
 void register_measurement(struct mpii_info* mpii_info,
 			  const char *counter_name,
 			  struct measurement_plugin *plugin,

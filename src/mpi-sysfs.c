@@ -110,7 +110,7 @@ int register_counter(struct mpii_info *mpii_info, int device_id, int subdevice_i
   counters[counter_id].subdevice_id = subdevice_id;
   _read_counter(nb_counters-1);
 
-  MPII_PRINTF(debug_level_normal, "[MPI-Wattmeter::perf_event] Found counter %s.\n", counter_name);
+  MPII_PRINTF(debug_level_normal, "[MPI-Wattmeter::sysfs] Found counter %s.\n", counter_name);
 
   register_measurement(mpii_info,
 		       counter_name,

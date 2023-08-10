@@ -22,7 +22,6 @@
 #include <inttypes.h>
 
 #include <mpi.h>
-struct mpii_info mpii_infos; /* information on the local process */
 
 /* pointers to actual MPI functions (C version)  */
 int (*libMPI_Init)(int*, char***);
@@ -225,14 +224,23 @@ static void load_settings() {
     }								\
   } while(0)
 
+#define GET_STRING_OPTION_VALUE(variable, buffer_size,  option, default_value) do { \
+    strncpy(variable, default_value, buffer_size);			\
+    char* str = getenv(option);						\
+    if(str) {								\
+      strncpy(variable, str, buffer_size);				\
+    }									\
+  } while(0)
+
   GET_INT_OPTION_VALUE(mpii_infos.settings.verbose, "MPII_VERBOSE", SETTINGS_VERBOSE_DEFAULT);
   GET_INT_OPTION_VALUE(mpii_infos.settings.print_details, "MPII_PRINT_DETAILS", SETTINGS_PRINT_DETAILS_DEFAULT);
   GET_INT_OPTION_VALUE(mpii_infos.settings.print_joules, "MPII_PRINT_JOULES", SETTINGS_PRINT_JOULES_DEFAULT);
   GET_INT_OPTION_VALUE(mpii_infos.settings.print_watthours, "MPII_PRINT_WATTHOURS", SETTINGS_PRINT_WATTHOURS_DEFAULT);
   GET_INT_OPTION_VALUE(mpii_infos.settings.print_co2, "MPII_PRINT_CO2", SETTINGS_PRINT_CO2_DEFAULT);
   GET_INT_OPTION_VALUE(mpii_infos.settings.print_watt, "MPII_PRINT_WATT", SETTINGS_PRINT_WATT_DEFAULT);
-
+  GET_STRING_OPTION_VALUE(mpii_infos.settings.plugin_list, STRING_LENGTH, "MPII_PLUGIN_LIST", SETTINGS_PLUGIN_LIST_DEFAULT);
 }
+
 
 void mpii_init(void) __attribute__((constructor));
 void mpii_init(void) {
@@ -240,9 +248,10 @@ void mpii_init(void) {
   load_settings();  
   INSTRUMENT_ALL_FUNCTIONS();
 
-  size_t  namelen = MPI_MAX_PROCESSOR_NAME;
+  size_t namelen = MPI_MAX_PROCESSOR_NAME;
   gethostname(mpii_infos.hostname, namelen);
 
+   load_plugins();
   start_measurements();
 }
 

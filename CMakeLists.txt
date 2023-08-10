@@ -28,7 +28,10 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 enable_language(C)
 enable_language(Fortran)
-option(ENABLE_NVML "Enable NVML" ON)
+option(ENABLE_NVML "Install the NVML  plugin" ON)
+option(ENABLE_PERF_EVENT "Install the perf_event plugin" ON)
+option(ENABLE_SYSFS "Install the sysfs plugin" ON)
+
 option(ENABLE_FORTRAN "Enable FORTRAN" ON)
 
 find_package (MPI)

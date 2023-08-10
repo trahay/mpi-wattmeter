@@ -1,7 +1,7 @@
 #pragma once
 
 #define INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
-#define INSTALL_LIBDIR "@CMAKE_INSTALL_LIBDIR@"
+#define INSTALL_LIBDIR "@CMAKE_INSTALL_FULL_LIBDIR@"
 
 #ifdef __GNUC__
 #define MAYBE_UNUSED __attribute__((unused))
@@ -24,8 +24,13 @@
 #define SETTINGS_PRINT_WATTHOURS_DEFAULT 0
 #define SETTINGS_PRINT_CO2_DEFAULT       0
 #define SETTINGS_PRINT_WATT_DEFAULT      1
+#define SETTINGS_PLUGIN_LIST_DEFAULT     ""
 
-//#define ENABLE_NVML @ENABLE_NVML@
+
+#define STRING_LENGTH 4096
+#define NB_COUNTERS_MAX 1024
+#define NB_PLUGINS_MAX 128
+
 enum devug_level {
   debug_level_quiet = 0,
   debug_level_normal = 1,
@@ -41,8 +46,6 @@ struct mpii_settings {
   int print_watthours;
   int print_co2;
   int print_watt;
-};
 
-#define STRING_LENGTH 4096
-#define NB_COUNTERS_MAX 1024
-#define NB_PLUGINS_MAX 128
+  char plugin_list[STRING_LENGTH];
+};
