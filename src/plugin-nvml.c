@@ -159,8 +159,8 @@ struct measurement_plugin nvml_plugin = {
   .init = mpi_nvml_init,
   .start_measurement = mpi_nvml_start,
   .stop_measurement = mpi_nvml_stop,
-  .plugin_name, "NVML",
-  .plugin_description, "Use Nvidia Management Library (NVML) to measure the power consumption of GPUs",
+  .plugin_name= "NVML",
+  .plugin_description= "Use Nvidia Management Library (NVML) to measure the power consumption of GPUs",
 };
 
 void _nvml_init(void) __attribute__((constructor));
