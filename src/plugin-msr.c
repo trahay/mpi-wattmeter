@@ -302,13 +302,13 @@ static int open_msr(int core) {
   if(fd < 0) {
     if ( errno == ENXIO ) {
       MPII_WARN("[MPI-Wattmeter::MSR] No CPU %d\n", core);
-      exit(2);
+      return -1;
     } else if ( errno == EIO ) {
       MPII_WARN("[MPI-Wattmeter::MSR] CPU %d doesn't support MSRs\n", core);
-      exit(3);
+      return -1;
     } else {
       MPII_WARN("[MPI-Wattmeter::MSR] Error Trying to open %s: %s\n",msr_filename, strerror(errno));
-      exit(127);
+      return -1;
     }
   }
   return fd;
@@ -373,7 +373,8 @@ static void initialize_msr() {
     MPII_PRINTF(debug_level_verbose, "[MPI-Wattmeter::MSR] Initialize package %d.\n", i);
 
     int fd = open_msr(package_map[i]);
-
+    if(fd < 0)
+      continue;
     /* Calculate the units used */
     result = read_msr(fd, current_cpu->msr_rapl_units);
     cpu_energy_units=pow(0.5,(double)((result>>8)&0x1f));
