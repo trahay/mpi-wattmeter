@@ -6,7 +6,7 @@ set(CMAKE_Fortran_COMPILER ${MPI_Fortran_COMPILER})
 
 
 # libmpi-wattmeter-core
-add_library(mpi-wattmeter-core SHARED mpi-plugin.c)
+add_library(mpi-wattmeter-core SHARED plugins.c)
 install(TARGETS mpi-wattmeter-core LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
@@ -31,7 +31,7 @@ install(TARGETS mpi-wattmeter-bin
 set(mpi-wattmeter_SOURCES )
 list(APPEND mpi-wattmeter_SOURCES
   mpi.c
-  mpi-measurement.c)
+  measurement.c)
 
 if(ENABLE_FORTRAN)
   # mpif.h may define a bunch of unused parameter which would generate lots of warnings
@@ -61,19 +61,19 @@ install(TARGETS mpi-wattmeter
 
 # libmpi-wattmeter-nvml
 if(ENABLE_NVML)
-  add_library(mpi-wattmeter-nvml SHARED mpi-nvml.c)
+  add_library(mpi-wattmeter-nvml SHARED plugin-nvml.c)
   target_link_libraries(mpi-wattmeter-nvml PRIVATE CUDA::nvml mpi-wattmeter-core) 
   install(TARGETS mpi-wattmeter-nvml LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
 if(ENABLE_PERF_EVENT)
-  add_library(mpi-wattmeter-perf-event SHARED mpi-perf_event.c)
+  add_library(mpi-wattmeter-perf-event SHARED plugin-perf_event.c)
   target_link_libraries(mpi-wattmeter-perf-event PRIVATE mpi-wattmeter-core) 
   install(TARGETS mpi-wattmeter-perf-event LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
 if(ENABLE_SYSFS)
-  add_library(mpi-wattmeter-sysfs SHARED mpi-sysfs.c)
+  add_library(mpi-wattmeter-sysfs SHARED plugin-sysfs.c)
   target_link_libraries(mpi-wattmeter-sysfs PRIVATE mpi-wattmeter-core) 
   install(TARGETS mpi-wattmeter-sysfs LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
