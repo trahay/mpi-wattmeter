@@ -42,10 +42,7 @@ struct measurement {
 
 struct measurement_plugin {
   char plugin_name[STRING_LENGTH];
-
-//  char path[STRING_LENGTH];
-//  char description[STRING_LENGTH];
-//  void* handle;
+  char plugin_description[STRING_LENGTH];
 
   int (*init)(struct mpii_info *mpii_info);
   int (*start_measurement)(struct mpii_info *mpii_info);

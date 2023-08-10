@@ -1,11 +1,9 @@
 #include "mpii.h"
 
-#if HAVE_NVML
-
 #include <nvml.h>
 #include <time.h>
 
-struct measurement_plugin nvml_plugin;
+extern struct measurement_plugin nvml_plugin;
 
 struct nvml_counter {
   char device_name[STRING_LENGTH];
@@ -157,28 +155,16 @@ int mpi_nvml_stop(struct mpii_info* mpii_info) {
 }
 
 
+struct measurement_plugin nvml_plugin = {
+  .init = mpi_nvml_init,
+  .start_measurement = mpi_nvml_start,
+  .stop_measurement = mpi_nvml_stop,
+  .plugin_name, "NVML",
+  .plugin_description, "Use Nvidia Management Library (NVML) to measure the power consumption of GPUs",
+};
+
 void _nvml_init(void) __attribute__((constructor));
 void _nvml_init(void){
-  nvml_plugin.init = mpi_nvml_init;
-  nvml_plugin.start_measurement = mpi_nvml_start;
-  nvml_plugin.stop_measurement = mpi_nvml_stop;
-  strcpy(nvml_plugin.plugin_name, "NVML");
-  
+    
   register_plugin(&nvml_plugin);
 }
-
-
-
-#else
-int mpi_nvml_init(struct mpii_info* mpii_info MAYBE_UNUSED) {
-  return 0;
-}
-
-int mpi_nvml_start(struct mpii_info* mpii_info MAYBE_UNUSED) {
-  return 0;
-}
-
-int mpi_nvml_stop(struct mpii_info* mpii_info MAYBE_UNUSED) {
-  return 0;
-}
-#endif

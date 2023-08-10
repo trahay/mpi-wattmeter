@@ -15,6 +15,8 @@ static char doc[] = "mpi_wattmeter description";
 static char args_doc[] = "target_application [TARGET OPTIONS]";
 const char * argp_program_version="MPII dev";
 
+static int list_plugins = 0;
+
 // long name, key, arg, option flags, doc, group
 // if key is negative or non printable, no short option
 static struct argp_option options[] = {
@@ -27,8 +29,17 @@ static struct argp_option options[] = {
 	{"co2", 'c', "yes|no", OPTION_ARG_OPTIONAL, "Print measurements in CO2 grams (default: no)" },
 	{"watt", 'w', "yes|no", OPTION_ARG_OPTIONAL, "Print measurements in Watts (default: yes)" },
 	{"plugins", 'p', "plugin1,plugin2,...", 0, "Select the plugins (default: all)" },
+	{"list", 'l', 0, 0, "Print the list of plugins" },
 	{0}
 };
+
+static void print_plugin_list() {
+  printf("Available plugins:\n");
+  load_plugins();
+  for(int i=0; i<mpii_infos.nb_plugins; i++) {
+    printf("%-20s\t%s\n", mpii_infos.plugins[i]->plugin_name, mpii_infos.plugins[i]->plugin_description);
+  }
+}
 
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
   /* Get the input settings from argp_parse, which we
@@ -65,6 +76,10 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
   case 'p':
     strncpy(settings->plugin_list, arg, STRING_LENGTH);
     break;
+  case 'l':
+    print_plugin_list();
+    exit(EXIT_SUCCESS);
+    break;
 
   case ARGP_KEY_NO_ARGS:
     argp_usage(state);
@@ -83,7 +98,20 @@ static struct argp argp = { options, parse_opt, args_doc, doc };
 
 int main(int argc, char**argv) {
   struct mpii_settings settings;
-  
+
+  mpii_infos.rank=0;
+  mpii_infos.size=1;
+  mpii_infos.hostname[0]='\0';
+  mpii_infos.hostnames=NULL;
+
+  mpii_infos.nb_counters=0;
+  mpii_infos.nb_plugins=0;
+
+  mpii_infos.mpi_mode=0;	/* are we running an MPI application ? */
+  mpii_infos.is_local_master=1;		/* set to 1 if the rank is a local master */
+  mpii_infos.local_rank=0;		/* rank in the communicator */
+  mpii_infos.local_size=1;		/* size of the communicator */
+
   // Default values
   settings.verbose = SETTINGS_VERBOSE_DEFAULT;
   settings.print_details = SETTINGS_PRINT_DETAILS_DEFAULT;

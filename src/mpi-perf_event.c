@@ -11,7 +11,7 @@
 #define MAX_CPUS	1024
 #define MAX_PACKAGES	16
 
-struct measurement_plugin perf_event_plugin;
+extern struct measurement_plugin perf_event_plugin;
 
 
 
@@ -249,13 +249,17 @@ int mpi_perf_event_stop(struct mpii_info* mpii_info) {
   return 0;
 }
 
+struct measurement_plugin perf_event_plugin = {
+  .init = mpi_perf_event_init,
+  .start_measurement = mpi_perf_event_start,
+  .stop_measurement = mpi_perf_event_stop,
+  .plugin_name = "perf_event",
+  .plugin_description = "Use perf_event to access RAPL meters",
+};
+    
 
 void _perf_event_init(void) __attribute__((constructor));
 void _perf_event_init(void){
-  perf_event_plugin.init = mpi_perf_event_init;
-  perf_event_plugin.start_measurement = mpi_perf_event_start;
-  perf_event_plugin.stop_measurement = mpi_perf_event_stop;
-  strcpy(perf_event_plugin.plugin_name, "perf_event");
   
   register_plugin(&perf_event_plugin);
 }

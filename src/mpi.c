@@ -251,7 +251,7 @@ void mpii_init(void) {
   size_t namelen = MPI_MAX_PROCESSOR_NAME;
   gethostname(mpii_infos.hostname, namelen);
 
-   load_plugins();
+  load_plugins(&mpii_infos);
   start_measurements();
 }
 

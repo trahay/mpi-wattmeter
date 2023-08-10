@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-struct measurement_plugin sysfs_plugin;
+extern struct measurement_plugin sysfs_plugin;
 
 struct counter_data {
   int fd;
@@ -183,13 +183,16 @@ int mpi_sysfs_stop(struct mpii_info* mpii_info) {
   return 0;
 }
 
+struct measurement_plugin sysfs_plugin = {
+  .init = mpi_sysfs_init,
+  .start_measurement = mpi_sysfs_start,
+  .stop_measurement = mpi_sysfs_stop,
+  .plugin_name = "sysfs",
+  .plugin_description = "Use /sys/devices/virtual/powercap/intel-rapl/ to access RAPL meters",
+};
 
 void _sysfs_init(void) __attribute__((constructor));
 void _sysfs_init(void){
-  sysfs_plugin.init = mpi_sysfs_init;
-  sysfs_plugin.start_measurement = mpi_sysfs_start;
-  sysfs_plugin.stop_measurement = mpi_sysfs_stop;
-  strcpy(sysfs_plugin.plugin_name, "sysfs");
   
   register_plugin(&sysfs_plugin);
 }
