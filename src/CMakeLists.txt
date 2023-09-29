@@ -66,6 +66,14 @@ if(ENABLE_NVML)
   install(TARGETS mpi-wattmeter-nvml LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
+# libmpi-wattmeter-rocm
+if(ENABLE_ROCM)
+  add_library(mpi-wattmeter-rocm SHARED plugin-rocm.c)
+  target_link_libraries(mpi-wattmeter-rocm PRIVATE ${ROCM_SMI_LIBRARIES} mpi-wattmeter-core)
+  target_include_directories(mpi-wattmeter-rocm PRIVATE ${ROCM_SMI_INCLUDE_DIRS})
+  install(TARGETS mpi-wattmeter-rocm LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+endif()
+
 if(ENABLE_PERF_EVENT)
   add_library(mpi-wattmeter-perf-event SHARED plugin-perf_event.c)
   target_link_libraries(mpi-wattmeter-perf-event PRIVATE mpi-wattmeter-core) 
